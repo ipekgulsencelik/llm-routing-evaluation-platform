@@ -173,15 +173,11 @@ class InMemoryProviderMetrics:
             for event in retained
             if event.kind == "RESULT" and event.metric_origin is MetricOrigin.OBSERVED
         ]
-        statuses = Counter(
-            event.status for event in observed if event.status is not None
-        )
+        statuses = Counter(event.status for event in observed if event.status is not None)
         errors = Counter(
             event.error_category for event in observed if event.error_category is not None
         )
-        samples = [
-            event.latency_ms for event in observed if event.latency_ms is not None
-        ]
+        samples = [event.latency_ms for event in observed if event.latency_ms is not None]
         successful = statuses[CallStatus.SUCCESS]
         total = len(observed)
         failures = total - successful
