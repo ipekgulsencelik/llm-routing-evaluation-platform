@@ -59,7 +59,10 @@ def test_optional_httpx_observer_records_safe_outcomes_and_keeps_privacy_boundar
                 "id": "test-id",
                 "model": MODEL,
                 "choices": [
-                    {"message": {"content": "SYNTHETIC_ANSWER_NOT_EXPORTED"}, "finish_reason": "stop"}
+                    {
+                        "message": {"content": "SYNTHETIC_ANSWER_NOT_EXPORTED"},
+                        "finish_reason": "stop",
+                    }
                 ],
                 "usage": {"prompt_tokens": 8, "completion_tokens": 3},
             },
