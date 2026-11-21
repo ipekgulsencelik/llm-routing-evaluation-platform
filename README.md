@@ -24,7 +24,7 @@ uv run llm-routing-eval run-routing --strategy knn
 uv run llm-routing-eval run-routing --strategy cascade
 ```
 
-Member 02 also provides a Groq Chat Completions adapter behind the shared provider port. It is **not connected to the CLI**, requires an explicit per-instance and environment opt-in plus `GROQ_API_KEY`, and is covered by network-free tests. The production privacy, financial evaluation and cost-accounting gates remain unimplemented, so no live banking benchmark is offered.
+Member 02 also provides a Groq Chat Completions adapter behind the shared provider port. It is **not connected to the CLI**, requires an explicit per-instance and environment opt-in plus `GROQ_API_KEY`, and is covered by network-free tests. The provider additionally requires explicit per-request outbound authorization (default deny), enforces resource budgets, and stores routing policy hashes in benchmark provenance. The production privacy, financial evaluation and cost-accounting gates remain unimplemented, so no live banking benchmark is offered. See [Member 02 enterprise-hardening design](docs/member02-enterprise-hardening.md).
 
 See [Member 02 implementation](docs/member02-implementation.md).
 
