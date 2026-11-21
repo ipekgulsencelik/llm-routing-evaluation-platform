@@ -514,9 +514,7 @@ class BenchmarkOrchestrator:
             if retry_hint is not None and retry_hint > options.max_retry_wait_seconds:
                 return result, index + 1
             wait_seconds = (
-                retry_hint
-                if retry_hint is not None
-                else min(2.0, (2**index) * random.random())
+                retry_hint if retry_hint is not None else min(2.0, (2**index) * random.random())
             )
             await self._sleep(min(wait_seconds, options.max_retry_wait_seconds))
         assert result is not None
