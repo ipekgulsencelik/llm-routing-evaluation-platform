@@ -42,6 +42,25 @@ class HttpResult:
     retry_after_seconds: float | None = None
 
 
+def _decode_success_body(raw: bytes) -> HttpResult:
+    """Map an HTTP 200 body to a bounded, strictly parsed response.
+
+    Invalid and oversized completions are NOT transient upstream HTTP errors;
+    the response mapper returns a non-retryable GROQ_INVALID_RESPONSE.
+    """
+    if len(raw) > _MAX_RESPONSE_BYTES:
+        return HttpResult(status_code=200)
+    try:
+        decoded = json.loads(raw)
+    except (ValueError, UnicodeError, RecursionError):
+        return HttpResult(status_code=200)
+    return (
+        HttpResult(status_code=200, body=decoded)
+        if isinstance(decoded, dict)
+        else HttpResult(status_code=200)
+    )
+
+
 class GroqTransport(Protocol):
     async def post_chat(
         self, body: Mapping[str, object], *, api_key: str, timeout_seconds: float
@@ -90,19 +109,7 @@ class UrllibGroqTransport:
                     )
                     return HttpResult(status_code=response.status, retry_after_seconds=hint)
                 raw = response.read(_MAX_RESPONSE_BYTES + 1)
-                if len(raw) > _MAX_RESPONSE_BYTES:
-                    # Treat an oversized 200 response as a malformed completion,
-                    # not as an HTTP 502 (which the orchestrator would retry).
-                    return HttpResult(status_code=200)
-                try:
-                    decoded = json.loads(raw)
-                except (ValueError, UnicodeError, RecursionError):
-                    # Malformed provider JSON is not a transient transport failure.
-                    # The mapper turns HTTP 200 + no body into a non-retryable code.
-                    return HttpResult(status_code=200)
-                if not isinstance(decoded, dict):
-                    return HttpResult(status_code=200)
-                return HttpResult(status_code=200, body=decoded)
+                return _decode_success_body(raw)
         except HTTPError as exc:
             # Do not load/log error bodies or redirects; close their file handles.
             try:
