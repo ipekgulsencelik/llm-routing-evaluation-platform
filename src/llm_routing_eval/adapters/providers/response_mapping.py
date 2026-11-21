@@ -94,44 +94,58 @@ class GroqResponseMapper:
     """A single responsibility: validate and normalize one completed HTTP result."""
 
     def map(self, request: ModelRequest, result: HttpResult, *, elapsed_ms: float) -> ModelResponse:
-        error_kwargs = {"origin": MetricOrigin.OBSERVED, "latency_ms": elapsed_ms}
-        status = result.status_code
-        if status == 429:
+        def http_failure(
+            code: str,
+            *,
+            category: ErrorCategory = ErrorCategory.PROVIDER,
+            status: CallStatus = CallStatus.FAILED,
+            retryable: bool = False,
+            usage: TokenUsage | None = None,
+        ) -> ModelResponse:
             return failed(
                 request,
+                code,
+                category=category,
+                status=status,
+                retryable=retryable,
+                origin=MetricOrigin.OBSERVED,
+                latency_ms=elapsed_ms,
+                usage=usage,
+            )
+
+        status = result.status_code
+        if status == 429:
+            return http_failure(
                 "GROQ_RATE_LIMIT",
                 category=ErrorCategory.RATE_LIMIT,
                 status=CallStatus.RATE_LIMITED,
                 retryable=True,
-                **error_kwargs,
             )
         if status in (408, 504):
-            return failed(
-                request,
+            return http_failure(
                 "GROQ_TIMEOUT",
                 category=ErrorCategory.PROVIDER_TIMEOUT,
                 status=CallStatus.TIMEOUT,
                 retryable=True,
-                **error_kwargs,
             )
         if status >= 500:
-            return failed(request, "GROQ_SERVER_ERROR", retryable=True, **error_kwargs)
+            return http_failure("GROQ_SERVER_ERROR", retryable=True)
         if status != 200:
-            return failed(request, "GROQ_HTTP_ERROR", **error_kwargs)
+            return http_failure("GROQ_HTTP_ERROR")
         payload = result.body
         if payload is None:
-            return failed(request, "GROQ_INVALID_RESPONSE", **error_kwargs)
+            return http_failure("GROQ_INVALID_RESPONSE")
         model = payload.get("model")
         if model is not None and model != request.model:
-            return failed(request, "GROQ_MODEL_MISMATCH", **error_kwargs)
+            return http_failure("GROQ_MODEL_MISMATCH")
         answer, finish_reason = _choice(payload)
         usage = _usage(payload)
         if finish_reason == "length":
-            return failed(request, "GROQ_TRUNCATED", usage=usage, **error_kwargs)
+            return http_failure("GROQ_TRUNCATED", usage=usage)
         if finish_reason not in (None, "stop"):
-            return failed(request, "GROQ_UNSUPPORTED_FINISH", usage=usage, **error_kwargs)
+            return http_failure("GROQ_UNSUPPORTED_FINISH", usage=usage)
         if answer is None:
-            return failed(request, "GROQ_INVALID_RESPONSE", usage=usage, **error_kwargs)
+            return http_failure("GROQ_INVALID_RESPONSE", usage=usage)
         provider_id = payload.get("id")
         safe_id = (
             provider_id
