@@ -145,7 +145,6 @@ def run(
         raise typer.Exit(code=2) from None
 
 
-
 @app.command("validate-routing-config")
 def validate_routing_config(
     router_config: Annotated[Path, typer.Option(help="Member 02 YAML router policy")] = Path(
@@ -188,9 +187,7 @@ def run_routing(
         if settings.execution.mode != "offline" or settings.execution.live_enabled:
             raise BenchmarkInputError("LIVE_MODE_NOT_IMPLEMENTED")
         router_settings = read_routing_settings(router_config)
-        if any(
-            example.input_text not in DEMO_PROMPTS for example in router_settings.knn.examples
-        ):
+        if any(example.input_text not in DEMO_PROMPTS for example in router_settings.knn.examples):
             raise BenchmarkInputError("ROUTING_DEMO_EXAMPLES_NOT_ALLOWLISTED")
         try:
             chosen = StrategyId(strategy)
