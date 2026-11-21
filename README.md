@@ -28,6 +28,16 @@ Member 02 also provides a Groq Chat Completions adapter behind the shared provid
 
 See [Member 02 implementation](docs/member02-implementation.md).
 
+## Member 02 four-strategy comparison (offline)
+
+Run one controlled, same-workload comparison and produce a single safe JSON summary:
+
+```powershell
+uv run llm-routing-eval compare-routing --output artifacts/offline_comparison.json
+```
+
+The report includes success and model-attempt counts, requests-per-case, model mix, local elapsed times, simulated token totals **and per-attempt averages**, fixture-only score coverage, routing/dataset fingerprints, and explicit unknown cost. Simulated data and two examples are **not** a live financial quality or latency benchmark. See [comparison design and measurement caveats](docs/member02-comparison.md).
+
 ## Member 01 offline smoke test
 
 The CLI is deliberately limited to two allowlisted synthetic examples and deterministic test doubles. **It does not judge financial correctness and never contacts a real API.**

@@ -33,4 +33,5 @@ jobs:
           uv run --locked llm-routing-eval run --config config/settings.yaml \
             --dataset examples/offline_demo_cases.json \
             --output artifacts/ci_offline_demo.jsonl
+          uv run --locked llm-routing-eval compare-routing --output artifacts/ci_comparison.json
 # Docker build/run checks are owned by Member 04 and remain to be added.
