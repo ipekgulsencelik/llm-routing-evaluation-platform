@@ -121,9 +121,7 @@ def test_429_http_error_reads_header_but_never_reads_body(
             raise error
 
     monkeypatch.setattr(transport_module, "build_opener", lambda *_: ErrorOpener())
-    result = transport_module.UrllibGroqTransport._post(
-        {"model": MODEL}, "NOT_REAL", 2.0
-    )
+    result = transport_module.UrllibGroqTransport._post({"model": MODEL}, "NOT_REAL", 2.0)
     assert result == HttpResult(status_code=429, retry_after_seconds=4.5)
     assert body.closed
     assert "PRIVATE" not in str(result)
