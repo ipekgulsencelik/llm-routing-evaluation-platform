@@ -56,7 +56,7 @@ collector = InMemoryProviderMetrics(
 
 # NO outbound authorization is granted: this remains deny-by-default.
 async with managed_httpx_groq_provider(
-    GroqProviderOptions(allowed_models=frozenset({'openai/gpt-oss-20b'})),
+    GroqProviderOptions(allowed_models=frozenset({"openai/gpt-oss-20b"})),
     metrics_sink=collector,
 ) as provider:
     # This example intentionally performs no HTTP requests.
