@@ -1,0 +1,29 @@
+name: Member02 Temporary TLS Test Lock Capture
+on:
+  push:
+    branches:
+      - test/member02-tls-dns-network-failures
+permissions:
+  contents: read
+jobs:
+  lock:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv python install 3.12
+      - name: Lock and export dev-only trustme dependency
+        run: |
+          uv lock
+          python - <<'PY'
+          import base64, hashlib
+          from pathlib import Path
+          data = Path("uv.lock").read_bytes()
+          print("MEMBER02_SHA256=" + hashlib.sha256(data).hexdigest())
+          print("MEMBER02_LENGTH=" + str(len(data)))
+          print("BEGIN_MEMBER02_TLS_LOCK")
+          chunk = base64.b64encode(data).decode()
+          for offset in range(0, len(chunk), 512):
+              print("MEMBER02_B64=" + chunk[offset:offset + 512])
+          print("END_MEMBER02_TLS_LOCK")
+          PY
