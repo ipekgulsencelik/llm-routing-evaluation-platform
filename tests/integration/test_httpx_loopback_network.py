@@ -78,9 +78,7 @@ def _write_headers(writer: asyncio.StreamWriter, *, body_size: int) -> None:
     )
 
 
-def _pool(
-    *, connections: int = 2, pool_timeout: float = 0.25
-) -> HttpxPoolSettings:
+def _pool(*, connections: int = 2, pool_timeout: float = 0.25) -> HttpxPoolSettings:
     return HttpxPoolSettings(
         max_connections=connections,
         max_keepalive_connections=0,
@@ -115,7 +113,8 @@ def test_real_loopback_tcp_json_response_and_shared_client() -> None:
 
         async with _loopback_server(respond) as url:
             async with httpx.AsyncClient(
-                trust_env=False, follow_redirects=False,
+                trust_env=False,
+                follow_redirects=False,
                 limits=httpx.Limits(max_connections=2, max_keepalive_connections=0),
             ) as native:
                 client = HttpxStreamingClient(native, _pool())
