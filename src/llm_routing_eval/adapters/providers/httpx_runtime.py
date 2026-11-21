@@ -13,9 +13,12 @@ from dataclasses import dataclass
 
 import httpx
 
+from llm_routing_eval.core import LLMProviderPort
+
 from .async_transport import AsyncClientGroqTransport, AsyncStreamingResponse
 from .authorization import OutboundAuthorization
 from .groq import GroqChatProvider, GroqProviderOptions
+from .observability import ObservedProvider, ProviderMetricsSink
 from .transport import GroqNetworkError, GroqTLSVerificationError
 
 
@@ -107,7 +110,8 @@ async def managed_httpx_groq_provider(
     outbound_authorization: OutboundAuthorization | None = None,
     pool_settings: HttpxPoolSettings | None = None,
     mock_transport: httpx.AsyncBaseTransport | None = None,
-) -> AsyncIterator[GroqChatProvider]:
+    metrics_sink: ProviderMetricsSink | None = None,
+) -> AsyncIterator[LLMProviderPort]:
     """Own one shared HTTPX client/pool across requests and close on shutdown.
 
     Inject mock_transport only in tests. By default, all outgoing operations
@@ -141,4 +145,4 @@ async def managed_httpx_groq_provider(
             transport=AsyncClientGroqTransport(HttpxStreamingClient(client, settings)),
             outbound_authorization=outbound_authorization,
         )
-        yield provider
+        yield ObservedProvider(provider, metrics_sink) if metrics_sink is not None else provider
