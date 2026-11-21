@@ -56,6 +56,9 @@ An injectable `AsyncClientGroqTransport` supports bounded streaming and coroutin
 ## Member 02 managed HTTPX runtime (opt-in, not live-enabled)
 
 The repository now pins `httpx==0.28.1` in `pyproject.toml` and `uv.lock`. A managed `httpx.AsyncClient` can be injected into the Groq provider through `managed_httpx_groq_provider()` with bounded TLS-verified connection pooling, normalized timeouts and asynchronous response disposal. The default provider/CLI authorization is unchanged: **live banking benchmarking remains disabled**. Unit tests use HTTPX mock streams and prove no real network cancellation. See [managed HTTPX integration and remaining production gates](docs/member02-managed-httpx.md).
+## Member 02 localhost TCP reliability tests
+
+The [loopback network reliability suite](docs/member02-loopback-network-reliability.md) verifies HTTPX against real **127.0.0.1 sockets**: successful streaming, read timeout, cancellation closing the TCP connection, and connection-pool saturation. It is included in the regular pytest/CI checks. **There are no external Groq calls**, and real TLS/DNS and deployment load/chaos tests remain future security release gates.
 ## Member 01 offline smoke test
 
 The CLI is deliberately limited to two allowlisted synthetic examples and deterministic test doubles. **It does not judge financial correctness and never contacts a real API.**
