@@ -105,9 +105,7 @@ class UrllibGroqTransport:
             # Do not load/log error bodies or redirects; close their file handles.
             try:
                 hint = (
-                    _retry_after_seconds(getattr(exc, "headers", None))
-                    if exc.code == 429
-                    else None
+                    _retry_after_seconds(getattr(exc, "headers", None)) if exc.code == 429 else None
                 )
                 return HttpResult(status_code=exc.code, retry_after_seconds=hint)
             finally:
