@@ -9,9 +9,10 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+from collections.abc import Mapping
 from dataclasses import dataclass
 from time import perf_counter
-from typing import Any, Literal, Mapping, Protocol
+from typing import Any, Literal, Protocol
 from urllib.error import HTTPError
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 

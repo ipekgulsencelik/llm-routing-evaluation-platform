@@ -180,9 +180,9 @@ def test_transport_timeout_and_exception_are_redacted_and_bounded(
     monkeypatch.setenv("LLM_ROUTING_ALLOW_LIVE", "1")
     monkeypatch.setenv("GROQ_API_KEY", "SECRET")
     timeout = asyncio.run(
-        GroqChatProvider(options(), transport=StubTransport(TimeoutError("TOKEN_PRIVATE"))).generate(
-            request()
-        )
+        GroqChatProvider(
+            options(), transport=StubTransport(TimeoutError("TOKEN_PRIVATE"))
+        ).generate(request())
     )
     failed = asyncio.run(
         GroqChatProvider(
