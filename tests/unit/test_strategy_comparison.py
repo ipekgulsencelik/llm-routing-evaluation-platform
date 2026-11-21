@@ -1,6 +1,7 @@
 """Cross-strategy comparison correctness, provenance, coverage and privacy tests."""
 
 import asyncio
+from pathlib import Path
 
 import pytest
 
@@ -24,8 +25,6 @@ from llm_routing_eval.demo.fakes import (
     InMemoryDemoRepository,
 )
 from llm_routing_eval.routing import build_router, read_routing_settings
-
-from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 CASES = (
@@ -108,7 +107,6 @@ def test_summary_does_not_expose_prompts_answers_or_credentials() -> None:
         "GROQ_API_KEY",
     ):
         assert private_value not in output
-    assert "not answer accuracy" in "Fixture-match is a fake-provider contract test, not answer accuracy."
 
 
 def test_content_hash_changes_for_modified_input_even_if_case_ids_are_same() -> None:
