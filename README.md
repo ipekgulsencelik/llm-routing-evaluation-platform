@@ -62,6 +62,9 @@ The [loopback network reliability suite](docs/member02-loopback-network-reliabil
 ## Member 02 TLS / DNS / remote-disconnect checks
 
 A new [network-failure integration suite](docs/member02-tls-dns-network-failures.md) exercises **real local TLS handshakes** using ephemeral test-only CA certificates, verifies that untrusted or hostname-mismatched certificates fail without retries, and tests synthetic DNS resolution failure plus abrupt TCP disconnects. `trustme==1.2.1` is a dev-only locked dependency; no certificates or keys are committed. Live provider access remains denied by default.
+## Member 02 concurrency and cancellation chaos tests
+
+The [concurrency/backpressure and local-TCP chaos gates](docs/member02-chaos-backpressure-gates.md) verify provider semaphore limits, default-deny privacy under concurrent load, cancellation of queued requests, retry ceilings, HTTPX connection-pool caps, and cleanup after multiple canceled local socket streams. They are included in the standard offline CI test suite. **These are functional safety checks, not live throughput, financial quality, or Groq performance benchmarks.**
 ## Member 01 offline smoke test
 
 The CLI is deliberately limited to two allowlisted synthetic examples and deterministic test doubles. **It does not judge financial correctness and never contacts a real API.**
