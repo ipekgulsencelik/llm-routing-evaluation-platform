@@ -1,0 +1,30 @@
+# Member 02 offline-development routing. No live provider or verified golden data.
+schema_version: "1.0.0"
+models:
+  small: openai/gpt-oss-20b
+  large: openai/gpt-oss-120b
+rule_based:
+  default_tier: large
+  rules:
+    - code: ACCOUNT_GENERAL
+      scenario_types: [account_general]
+      tier: small
+    - code: CARD_GENERAL
+      scenario_types: [card_general]
+      tier: small
+knn:
+  k: 1
+  minimum_similarity: 0.35
+  embedding_dimensions: 256
+  examples:
+    - example_id: synthetic-dev-account-01
+      input_text: "Banka hesabı açmak için genel süreç nedir?"
+      tier: small
+      split: development
+    - example_id: synthetic-dev-card-01
+      input_text: "Banka kartı ile kredi kartı arasındaki fark nedir?"
+      tier: small
+      split: development
+cascade:
+  escalate_scenarios: [card_general]
+  escalate_on_failure: true
