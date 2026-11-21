@@ -68,6 +68,9 @@ The [concurrency/backpressure and local-TCP chaos gates](docs/member02-chaos-bac
 ## Member 02 privacy-safe provider observability (opt-in)
 
 An optional [bounded provider metrics adapter](docs/member02-provider-observability.md) now provides fixed-cardinality status/error-category counters, measured-transport latency samples, minimum-coverage p50/p95, and diagnostic-only provider-attempt error-budget checks. It stores **no prompts, outputs, credentials or request identifiers**, and is never automatically attached to a network exporter. Pre-transport privacy denials, missing data and cancellations remain separate from observed provider-attempt denominators. `managed_httpx_groq_provider(metrics_sink=...)` permits explicit injection; the default Groq authorization and live CLI remain blocked.
+## Member 02 cross-member contract handoff (offline)
+
+An [offline cross-member interface acceptance suite](docs/member02-cross-member-integration.md) composes Member 01's orchestrator with all four real Member 02 routers, the Groq HTTPX adapter and provider metrics, plus **test-only Member 03 evaluator and Member 04 privacy/repository adapters**. It verifies two privacy gates, golden reference isolation, fail-closed outbound authorization, redacted persistence, evaluator failure and trace/telemetry reconciliation. **The actual Member 03/04 modules are still scaffolds** and live Groq integration is not complete; this suite provides explicit integration acceptance tests for their future real adapters.
 ## Member 01 offline smoke test
 
 The CLI is deliberately limited to two allowlisted synthetic examples and deterministic test doubles. **It does not judge financial correctness and never contacts a real API.**
