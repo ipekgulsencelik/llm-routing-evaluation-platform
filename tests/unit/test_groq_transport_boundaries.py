@@ -49,9 +49,7 @@ class FakeOpener:
         return self.response
 
 
-def stub_http(
-    monkeypatch: pytest.MonkeyPatch, reply: FakeResponse | HTTPError
-) -> FakeOpener:
+def stub_http(monkeypatch: pytest.MonkeyPatch, reply: FakeResponse | HTTPError) -> FakeOpener:
     opener = FakeOpener(reply)
 
     def replace_opener(*handlers: object) -> FakeOpener:
