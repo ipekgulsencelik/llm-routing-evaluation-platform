@@ -1,6 +1,6 @@
 # Member 02 — Local TCP Reliability Verification
 
-**Status:** Automated, socket-backed reliability tests for the pinned HTTPX 0.28.1 streaming client; no external requests or Groq credentials. This does not approve live banking benchmarking.
+**Status:** Automated socket-backed reliability tests, now also extended with local TLS, injected DNS failures and abrupt disconnects in [the TLS/DNS follow-up](member02-tls-dns-network-failures.md). No external requests or Groq credentials. This does not approve live banking benchmarking.
 
 ## Why this test suite exists
 
@@ -30,7 +30,7 @@ uv run llm-routing-eval groq-preflight
 
 ## Remaining enterprise acceptance criteria
 
-- **TLS/DNS failure simulation:** local tests use HTTP to loopback only, not real TLS certificate negotiation or name resolution.
+- **TLS/DNS failure simulation:** the follow-up adds real loopback TLS handshakes with synthetic test CAs and an injected fake DNS resolver failure; public TLS/DNS infrastructure remains untested.
 - **Host network policy:** Docker/eBPF outbound network allowlists, NAT, proxy enforcement, DNS pinning and certificate trust require a security review.
 - **Load and chaos:** multiple concurrent connections, connection resets, half-open sockets, longer-duration cancellation storms and resilience measurements require a controlled workload with threshold-based acceptance criteria.
 - **Production release gates:** Member 03's expert evaluation, Member 04's reviewed outbound privacy authorization, verified pricing and Groq account/model access are still unresolved. Never use real customer data until approvals are complete.
