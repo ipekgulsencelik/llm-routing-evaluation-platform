@@ -30,7 +30,9 @@ def _retry_after_seconds(headers: Mapping[str, str] | None) -> float | None:
     if not isinstance(value, str) or _NUMERIC_SECONDS.fullmatch(value.strip()) is None:
         return None
     seconds = float(value)
-    return seconds if 0 <= seconds <= 86_400 else None
+    # A very long numeric hint must never cause an earlier fallback retry.
+    # A saturated hint is greater than all allowed per-run wait budgets.
+    return min(seconds, 86_400.0)
 
 
 @dataclass(frozen=True, slots=True)
