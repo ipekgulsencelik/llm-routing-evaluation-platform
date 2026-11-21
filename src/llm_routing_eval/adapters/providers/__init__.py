@@ -1,17 +1,17 @@
-"""Provider adapters behind the shared LLMProviderPort (never imported by Core)."""
+"""Ports-and-adapters boundary for LLM providers; Core never imports this module."""
 
-from .groq import (
-    GroqChatProvider,
-    GroqProviderOptions,
-    GroqTransport,
-    HttpResult,
-    UrllibGroqTransport,
-)
+from .authorization import DenyAllOutbound, OutboundAuthorization
+from .groq import GroqChatProvider, GroqProviderOptions
+from .response_mapping import GroqResponseMapper
+from .transport import GroqTransport, HttpResult, UrllibGroqTransport
 
 __all__ = [
+    "DenyAllOutbound",
     "GroqChatProvider",
     "GroqProviderOptions",
+    "GroqResponseMapper",
     "GroqTransport",
     "HttpResult",
+    "OutboundAuthorization",
     "UrllibGroqTransport",
 ]
