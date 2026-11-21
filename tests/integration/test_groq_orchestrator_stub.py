@@ -198,7 +198,10 @@ def test_outbound_authorization_denies_even_with_key_and_live_flag(
         if step.kind is TraceStepKind.PROVIDER_ATTEMPT
     ]
     assert all(ev.call_status is CallStatus.FAILED for ev in events)
-    assert all(ev.error is not None and ev.error.code == "GROQ_PRIVACY_NOT_AUTHORIZED" for ev in events)
+    assert all(
+        ev.error is not None and ev.error.code == "GROQ_PRIVACY_NOT_AUTHORIZED"
+        for ev in events
+    )
 
 
 def test_rate_limit_retries_are_traced_and_bounded(
