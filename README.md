@@ -53,6 +53,9 @@ Groq HTTP 429 numeric `Retry-After` is now parsed without retaining raw headers 
 ## Member 02 optional native-async Groq transport boundary
 
 An injectable `AsyncClientGroqTransport` supports bounded streaming and coroutine cancellation through an externally managed async HTTP client. It preserves the existing provider privacy gate and does not require an extra dependency to run offline tests. **It is not the live default, does not bundle an HTTPX dependency, and has not been validated against a real network connection.** See [async transport design and rollout requirements](docs/member02-async-transport.md).
+## Member 02 managed HTTPX runtime (opt-in, not live-enabled)
+
+The repository now pins `httpx==0.28.1` in `pyproject.toml` and `uv.lock`. A managed `httpx.AsyncClient` can be injected into the Groq provider through `managed_httpx_groq_provider()` with bounded TLS-verified connection pooling, normalized timeouts and asynchronous response disposal. The default provider/CLI authorization is unchanged: **live banking benchmarking remains disabled**. Unit tests use HTTPX mock streams and prove no real network cancellation. See [managed HTTPX integration and remaining production gates](docs/member02-managed-httpx.md).
 ## Member 01 offline smoke test
 
 The CLI is deliberately limited to two allowlisted synthetic examples and deterministic test doubles. **It does not judge financial correctness and never contacts a real API.**
