@@ -19,6 +19,7 @@ from llm_routing_eval.application import (
 )
 from llm_routing_eval.cli.comparison_export import write_comparison
 from llm_routing_eval.cli.configuration import demo_options, read_settings
+from llm_routing_eval.cli.groq_preflight import assess_groq_preflight, read_provider_manifest
 from llm_routing_eval.core import BenchmarkCase
 from llm_routing_eval.demo.fakes import (
     DEMO_PROMPTS,
@@ -309,6 +310,35 @@ def compare_routing(
         )
         typer.echo(f"COMPARISON_FAILED: {reason}", err=True)
         raise typer.Exit(code=2) from None
+
+
+@app.command("groq-preflight")
+def groq_preflight(
+    providers_config: Annotated[Path, typer.Option(help="Versioned provider YAML config")] = Path(
+        "config/providers.yaml"
+    ),
+    router_config: Annotated[Path, typer.Option(help="Versioned router YAML config")] = Path(
+        "config/routing.yaml"
+    ),
+) -> None:
+    """Diagnose live integration blockers without external API requests or secrets."""
+    try:
+        manifest = read_provider_manifest(providers_config)
+        policy = read_routing_settings(router_config)
+        result = assess_groq_preflight(manifest, policy)
+    except ValueError:
+        typer.echo("GROQ_PREFLIGHT_INVALID", err=True)
+        raise typer.Exit(code=2) from None
+    typer.echo(f"GROQ_PREFLIGHT_STATUS: {result.status}")
+    typer.echo(
+        "MODEL_CONFIGURATION: "
+        + ("MATCH" if result.provider_model_alignment else "MISMATCH")
+    )
+    for reason in result.blockers:
+        typer.echo(f"BLOCKER: {reason}")
+    typer.echo("NO_NETWORK_REQUESTS; no credential value inspected or printed")
+    # Until approval gates exist, this command must never report live readiness.
+    raise typer.Exit(code=2)
 
 
 if __name__ == "__main__":
