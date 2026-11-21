@@ -1,7 +1,7 @@
 # Member 02 — Offline Routing Implementation
 
 **Scope:** Real offline routing decisions behind the existing Core `RouterPort`.
-**Status:** Four routing strategies, strict YAML configuration, offline CLI composition, and a guarded Groq transport adapter are merged into main. The enterprise-hardening changes remain in a separate review PR. A live benchmark is **not** available until privacy, evaluation, cost reporting, and cross-member contracts are reviewed. See [Member 02 enterprise-hardening design](member02-enterprise-hardening.md).
+**Status (2026-11-21):** Four routing strategies, strict YAML/CLI, guarded Groq provider, optional managed HTTPX, bounded retries, safe observability and offline cross-member contract tests are merged. **Live benchmarking remains unauthorized and is not exposed through the CLI.** For verified CI evidence and release blockers, see [final technical audit and handoff](member02-final-technical-handoff.md).
 
 ## Architecture and boundaries
 
@@ -53,15 +53,17 @@ The model IDs are configured candidate IDs, not access verification. The test kN
 
 `GroqChatProvider` implements the existing `LLMProviderPort` without changing Core contracts. It talks to the documented Groq Chat Completions endpoint using a bounded standard-library HTTPS transport with redirects disabled. Responses are converted into safe status/error categories, latency, and observed token counts. Provider error payloads, secrets, and raw model answers are not written to traces by the adapter.
 
-The adapter has **three independent guards**: the configured model must be allowlisted, `GroqProviderOptions(live_enabled=True)` must be passed, and the environment must include both `LLM_ROUTING_ALLOW_LIVE=1` and `GROQ_API_KEY`. The offline CLI intentionally **does not** wire this live adapter. Live calls should only be exposed after Member 04's audited privacy boundary and Member 03's evaluation policy are accepted.
+The adapter requires model allowlisting, explicit provider opt-in, environment opt-in, a configured API key, and independently reviewed per-request `OutboundAuthorization`. Authorization defaults to deny-all even when a key and environment flags exist. The offline CLI **does not** wire live calls. Member 04 privacy and Member 03 expert evaluation approval remain required.
 
-Transport is injectable and all tests use a fake; CI requires no network or secret. The adapter relies on standard-library urllib so there is no new dependency/lockfile churn. Groq model/account availability, rate limits and real usage are **unverified** until a controlled opt-in test.
+Transport is injectable. The default provider still uses standard-library `urllib` (its OS worker cannot be forcibly cancelled), while an optional managed `httpx==0.28.1` async runtime supports bounded pooling and local TCP/TLS/cancellation tests. CI uses mocked or loopback-only traffic with no real provider keys. Actual Groq model/account availability, real rate-limit behavior, remote provider usage and billing remain **unverified** until an authorized synthetic-only pilot.
 
 Groq docs: https://console.groq.com/docs/api-reference and https://console.groq.com/docs/models.
 
-## Remaining Member 02 milestones
+## Remaining Member 02 handoff gates (current status)
 
-1. Review routing semantics and `RouterPort` contracts with Members 01/03/04.
-2. Review and merge YAML composition and the Groq provider adapter with CI checks.
-3. Coordinate the live-run privacy gate, dataset and human-reviewed quality rubric with Members 03/04; add pricing/cost provenance and gated live integration tests only after that.
-4. After MVP, implement and verify a separate NVIDIA Build compatibility adapter.
+1. Obtain Member 01/03/04 review of routing/provider contracts, trace/retry accounting, safe telemetry and golden isolation.
+2. Replace test-only evaluator/privacy/persistence adapters with actual approved Member 03/04 implementations and rerun the cross-member acceptance suite.
+3. Only after privacy, evaluation, account/model access and pricing approval, run a tightly controlled synthetic-only Groq pilot to verify response/usage compatibility and operational behavior.
+4. After the first MVP, implement NVIDIA Build as the separate M5 compatibility milestone.
+
+See [the audited handoff checklist and CI evidence](member02-final-technical-handoff.md).
