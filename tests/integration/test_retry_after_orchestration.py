@@ -48,9 +48,7 @@ class RateLimitThenSuccess:
             status_code=200,
             body={
                 "model": body["model"],
-                "choices": [
-                    {"message": {"content": DEMO_RESPONSE}, "finish_reason": "stop"}
-                ],
+                "choices": [{"message": {"content": DEMO_RESPONSE}, "finish_reason": "stop"}],
                 "usage": {"prompt_tokens": 16, "completion_tokens": 8},
             },
         )
