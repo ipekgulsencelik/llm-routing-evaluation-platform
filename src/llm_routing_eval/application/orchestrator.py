@@ -64,6 +64,7 @@ class RunOptions(BaseModel):
     temperature: float | None = Field(default=0, ge=0, le=2)
     max_output_tokens: int | None = Field(default=128, gt=0)
     prompt_version: str = "offline-demo-v1"
+    routing_policy_sha256: str | None = Field(default=None, pattern=r"^sha256:[0-9a-f]{64}$")
 
     @model_validator(mode="after")
     def validate_models(self) -> Self:
@@ -172,6 +173,11 @@ class BenchmarkOrchestrator:
                 "execution_mode": "offline_demo" if options.provider == "fake" else "configured",
                 "prompt_version": options.prompt_version,
                 "privacy_boundary": "pre-routing and pre-provider",
+                **(
+                    {"routing_policy_sha256": options.routing_policy_sha256}
+                    if options.routing_policy_sha256 is not None
+                    else {}
+                ),
                 "dataset_identifiers_sha256": hashlib.sha256(
                     json.dumps(
                         [case.case_id for case in cases],

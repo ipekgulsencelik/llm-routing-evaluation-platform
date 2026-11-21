@@ -1,6 +1,6 @@
 # LLM Routing Evaluation Platform - V1.1
 
-**Status:** Member 01 core, application and CLI offline demo implemented. Member 02 offline routing strategies are implemented behind RouterPort; an additional configured offline CLI is available on the Member 02 integration branch. Live providers, production privacy, dataset evaluation and durable reporting remain pending.
+**Status:** Member 01 core, application and CLI offline demo implemented. Member 02's four offline routing strategies, strict YAML composition and CLI are merged into main. The optional Groq adapter is available but no live benchmark endpoint is exposed. Live providers, production privacy, dataset evaluation and durable reporting remain pending.
 
 An open-source, domain-independent framework to evaluate whether LLM routing strategies improve cost, answer quality and latency on controlled workloads. The first domain pack targets **Turkish Retail Banking & Customer Support**.
 
@@ -9,7 +9,7 @@ An open-source, domain-independent framework to evaluate whether LLM routing str
 - Python 3.12+, uv, TOML, YAML, Docker
 - Modular monolith, SOLID/OOP and pragmatic Ports & Adapters
 - Pydantic v2 contracts, Typer CLI, async dependency injection through Ports
-- Strategies: Always-Large, Rule-Based, kNN and Cascade (offline RouterPort implementations; CLI integration pending)
+- Strategies: Always-Large, Rule-Based, kNN and Cascade (configured offline RouterPort implementations and CLI)
 - Primary live provider: Groq (later, opt-in); NVIDIA Build (post-MVP)
 
 ## Member 02 offline strategy evaluation (new)
@@ -24,7 +24,7 @@ uv run llm-routing-eval run-routing --strategy knn
 uv run llm-routing-eval run-routing --strategy cascade
 ```
 
-Member 02 also provides a Groq Chat Completions adapter behind the shared provider port. It is **not connected to the CLI**, requires an explicit per-instance and environment opt-in plus `GROQ_API_KEY`, and is covered by network-free tests. The production privacy, financial evaluation and cost-accounting gates remain unimplemented, so no live banking benchmark is offered.
+Member 02 also provides a Groq Chat Completions adapter behind the shared provider port. It is **not connected to the CLI**, requires an explicit per-instance and environment opt-in plus `GROQ_API_KEY`, and is covered by network-free tests. The provider additionally requires explicit per-request outbound authorization (default deny), enforces resource budgets, and stores routing policy hashes in benchmark provenance. The production privacy, financial evaluation and cost-accounting gates remain unimplemented, so no live banking benchmark is offered. See [Member 02 enterprise-hardening design](docs/member02-enterprise-hardening.md).
 
 See [Member 02 implementation](docs/member02-implementation.md).
 
@@ -48,7 +48,7 @@ The generated JSONL contains a redacted execution trace, fixture-only evaluation
 
 ### Current verification constraints
 
-Member 01 quality gates (Python 3.12, `uv sync --locked`): `uv lock --check`, `ruff check .`, `ruff format --check .`, `mypy` (strict, `src/`) and 40 `pytest` tests pass with approximately 94% statement coverage. The GitHub Actions workflow runs the same offline gates plus a CLI smoke test. No live API calls were made. Docker remains a scaffold and is unverified (Member 04).
+Latest Member 02 hardening PR verification (Python 3.12, `uv sync --locked`): `uv lock --check`, `ruff check .`, `ruff format --check .`, strict `mypy` and 103 `pytest` tests pass with 93% statement coverage. The GitHub Actions workflow runs the same offline gates plus a CLI smoke test. No live API calls were made. Docker remains a scaffold and is unverified (Member 04).
 
 ```bash
 uv lock --check
@@ -64,6 +64,7 @@ uv run pytest -q --cov=llm_routing_eval
 - [Decision log](docs/decisions.md)
 - [Member 01 implementation and handoff](docs/member01-implementation.md)
 - [Member 02 offline routing implementation](docs/member02-implementation.md)
+- [Member 02 enterprise hardening and release gates](docs/member02-enterprise-hardening.md)
 - [Core contract specification](docs/contracts.md)
 - [Development roadmap](docs/development-roadmap.md)
 - [Contributor guidance](docs/contributing.md)

@@ -1,7 +1,7 @@
 # Member 02 — Offline Routing Implementation
 
 **Scope:** Real offline routing decisions behind the existing Core `RouterPort`.
-**Status:** Four routing strategies implemented and merged. Strict YAML configuration, offline CLI composition, and a fail-closed Groq transport adapter are proposed in the next PR. A live benchmark is **not** available until privacy, evaluation, cost reporting, and cross-member contracts are reviewed.
+**Status:** Four routing strategies, strict YAML configuration, offline CLI composition, and a guarded Groq transport adapter are merged into main. The enterprise-hardening changes remain in a separate review PR. A live benchmark is **not** available until privacy, evaluation, cost reporting, and cross-member contracts are reviewed. See [Member 02 enterprise-hardening design](member02-enterprise-hardening.md).
 
 ## Architecture and boundaries
 

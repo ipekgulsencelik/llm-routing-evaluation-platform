@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 from pathlib import Path
 from typing import Literal, Self
 
@@ -91,6 +93,19 @@ class RoutingSettings(FrozenSettings):
     rule_based: RuleBasedSettings
     knn: KnnSettings
     cascade: CascadeSettings
+
+    def fingerprint(self) -> str:
+        """Hash the full routing policy without exposing development sample text.
+
+        Model IDs, rule order, development examples, thresholds, and versions
+        are intentionally all included so changing routing behavior changes
+        the immutable fingerprint.
+        """
+        canonical = json.dumps(
+            self.model_dump(mode="json"), sort_keys=True, separators=(",", ":"), ensure_ascii=False
+        )
+        digest = hashlib.sha256(("routing-policy-v1\n" + canonical).encode("utf-8")).hexdigest()
+        return "sha256:" + digest
 
 
 def read_routing_settings(path: Path) -> RoutingSettings:

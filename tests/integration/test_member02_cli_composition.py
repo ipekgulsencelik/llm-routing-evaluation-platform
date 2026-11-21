@@ -38,6 +38,10 @@ def test_configured_offline_routing_command(strategy: str, tmp_path: Path) -> No
     rows = [json.loads(row) for row in output.read_text(encoding="utf-8").splitlines()]
     assert len(rows) == 5
     assert rows[-1]["payload"]["strategy_metrics"][strategy]["case_count"] == 2
+    from llm_routing_eval.routing import read_routing_settings
+
+    fingerprint = read_routing_settings(ROOT / "config/routing.yaml").fingerprint()
+    assert rows[-1]["payload"]["provenance"]["routing_policy_sha256"] == fingerprint
     assert "Banka kartı" not in output.read_text(encoding="utf-8")
 
 

@@ -199,6 +199,7 @@ def run_routing(
             provider="fake",
             allowed_models=(router_settings.models.small, router_settings.models.large),
             dataset_version=dataset_version,
+            routing_policy_sha256=router_settings.fingerprint(),
             max_model_calls_per_case=settings.execution.max_model_calls_per_case,
             max_retries=settings.execution.max_retries,
         )
