@@ -13,7 +13,7 @@ from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 _ENDPOINT = "https://api.groq.com/openai/v1/chat/completions"
 _MAX_RESPONSE_BYTES = 1_048_576
-_NUMERIC_SECONDS = re.compile(r"^(?:0|[1-9][0-9]{0,4})(?:\.[0-9]{1,3})?$")
+_NUMERIC_SECONDS = re.compile(r"^(?:0|[1-9][0-9]{0,31})(?:\.[0-9]{1,3})?$")
 
 
 def _retry_after_seconds(headers: Mapping[str, str] | None) -> float | None:
