@@ -46,6 +46,10 @@ uv run llm-routing-eval groq-preflight
 
 The expected result is **BLOCKED (exit code 2)** until separately approved privacy authorization, expert evaluation, verified pricing and actual model-account access are in place. This command **never calls Groq** and does not print secrets. All four strategies have a separate Groq wire-protocol integration test suite using an injected synthetic HTTP stub; it is not a live performance benchmark. See [preflight and cross-member handoff](docs/member02-groq-preflight.md).
 
+## Member 02 bounded Groq rate-limit retries
+
+Groq HTTP 429 numeric `Retry-After` is now parsed without retaining raw headers and honored only within the run's explicitly bounded retry wait; longer hints stop retries rather than retrying early. This adds safe optional retry-hint fields to the provider/Core contract; see [retry policy and remaining cancellation limitations](docs/member02-retry-after.md). Live provider use remains **deny-by-default** and `groq-preflight` remains blocked.
+
 ## Member 01 offline smoke test
 
 The CLI is deliberately limited to two allowlisted synthetic examples and deterministic test doubles. **It does not judge financial correctness and never contacts a real API.**
