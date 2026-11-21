@@ -24,7 +24,12 @@ from llm_routing_eval.core import (
 
 from .authorization import DenyAllOutbound, OutboundAuthorization
 from .response_mapping import GroqResponseMapper, failed
-from .transport import GroqNetworkError, GroqTLSVerificationError, GroqTransport, UrllibGroqTransport
+from .transport import (
+    GroqNetworkError,
+    GroqTLSVerificationError,
+    GroqTransport,
+    UrllibGroqTransport,
+)
 
 _SAFE_MODEL_ID = re.compile(r"^[A-Za-z0-9_./-]{1,100}$")
 
