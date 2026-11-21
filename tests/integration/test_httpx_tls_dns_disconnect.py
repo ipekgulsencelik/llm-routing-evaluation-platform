@@ -44,9 +44,7 @@ async def _drain_request(reader: asyncio.StreamReader) -> None:
 
 
 @asynccontextmanager
-async def _server(
-    handler: Handler, *, context: ssl.SSLContext | None = None
-) -> AsyncIterator[str]:
+async def _server(handler: Handler, *, context: ssl.SSLContext | None = None) -> AsyncIterator[str]:
     """All socket activity stays on ephemeral 127.0.0.1 ports."""
     tasks: set[asyncio.Task[None]] = set()
 
@@ -65,9 +63,7 @@ async def _server(
             if current is not None:
                 tasks.discard(current)
 
-    server = await asyncio.start_server(
-        accepted, host="127.0.0.1", port=0, ssl=context
-    )
+    server = await asyncio.start_server(accepted, host="127.0.0.1", port=0, ssl=context)
     port = server.sockets[0].getsockname()[1]
     scheme = "https" if context is not None else "http"
     try:
@@ -214,8 +210,7 @@ def test_loopback_remote_disconnect_is_redacted_network_failure(phase: str) -> N
             accepted += 1
             if phase == "partial_body":
                 writer.write(
-                    b"HTTP/1.1 200 OK\r\nContent-Length: 200\r\nConnection: close\r\n\r\n"
-                    b"partial"
+                    b"HTTP/1.1 200 OK\r\nContent-Length: 200\r\nConnection: close\r\n\r\npartial"
                 )
                 await writer.drain()
             # Close the socket with an incomplete response, not a valid 200.
@@ -268,9 +263,7 @@ def test_provider_maps_tls_and_network_errors_without_leaking_details(
         (GroqNetworkError("private remote address"), "GROQ_NETWORK_ERROR", True),
     ]:
         provider = GroqChatProvider(
-            GroqProviderOptions(
-                allowed_models=frozenset({"fake/model"}), live_enabled=True
-            ),
+            GroqProviderOptions(allowed_models=frozenset({"fake/model"}), live_enabled=True),
             transport=BrokenTransport(error),
             outbound_authorization=SyntheticApproval(),
         )
