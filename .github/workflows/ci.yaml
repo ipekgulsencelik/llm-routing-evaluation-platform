@@ -34,4 +34,13 @@ jobs:
             --dataset examples/offline_demo_cases.json \
             --output artifacts/ci_offline_demo.jsonl
           uv run --locked llm-routing-eval compare-routing --output artifacts/ci_comparison.json
+      - name: Groq preflight must fail closed
+        run: |
+          mkdir -p artifacts
+          set +e
+          uv run --locked llm-routing-eval groq-preflight > artifacts/ci_groq_preflight.txt
+          result=$?
+          set -e
+          test "$result" -eq 2
+          grep -q "GROQ_PREFLIGHT_STATUS: BLOCKED" artifacts/ci_groq_preflight.txt
 # Docker build/run checks are owned by Member 04 and remain to be added.
