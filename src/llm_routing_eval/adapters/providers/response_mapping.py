@@ -126,10 +126,8 @@ class GroqResponseMapper:
         if status == 429:
             raw_hint = result.retry_after_seconds
             safe_hint = (
-                float(raw_hint)
-                if type(raw_hint) in (int, float)
-                and math.isfinite(raw_hint)
-                and 0 <= raw_hint <= 86_400
+                raw_hint
+                if raw_hint is not None and math.isfinite(raw_hint) and 0 <= raw_hint <= 86_400
                 else None
             )
             return http_failure(
