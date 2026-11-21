@@ -1,5 +1,7 @@
 # Member 02 — Routing & LLM Integration
 
+> **Historical project-plan note (2026-11-21):** This file preserves the initial specification and unchecked acceptance items, not the current completion status. See the [Member 02 final handoff](member02-final-technical-handoff.md) for merged implementations, CI evidence and pending cross-team approvals.
+
 **Project:** LLM Routing Evaluation Platform\
 **Role:** Routing Strategies & Provider Integration Owner\
 **Status:** Offline routing algorithms and tests implemented in Member 02's feature branch; CLI configuration, live providers, joint contract approval and benchmark validation remain pending. See [implementation notes](member02-implementation.md).

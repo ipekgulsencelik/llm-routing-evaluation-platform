@@ -1,5 +1,7 @@
 # Member 02 — Enterprise Hardening: Privacy, Reliability & Provenance
 
+> **Historical milestone note (2026-11-21):** This file captures the original hardening plan. Follow-up changes implemented bounded `Retry-After`, an opt-in managed HTTPX 0.28.1 transport, local TCP/TLS cancellation tests and privacy-safe metrics. See the [current technical audit and release blockers](member02-final-technical-handoff.md).
+
 **Status:** Proposed architecture and tested implementation, not enterprise certification. No live banking benchmark is exposed by this PR.
 
 ## Architecture (SOLID / Ports and Adapters)

@@ -1,5 +1,7 @@
 # Member 02 — Groq HTTP Boundary Hardening
 
+> **Historical PR note (2026-11-21):** The 'known open items' below describe the state of this earlier transport PR. Later work added bounded `Retry-After` and optional HTTPX. The default threaded urllib cancellation limitation and live approvals remain unresolved. See the [current handoff audit](member02-final-technical-handoff.md).
+
 **Scope:** Fix incorrect retry classification when the Groq endpoint returns an HTTP 200 response with invalid JSON, an unsupported JSON root, or an oversized body. This is an offline-tested reliability improvement, not a production-live rollout.
 
 ## Failure modes and behavior
