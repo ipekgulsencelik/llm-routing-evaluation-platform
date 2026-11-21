@@ -1,0 +1,30 @@
+name: Member02 Temporary Lock Capture
+on:
+  push:
+    branches:
+      - feat/member02-managed-httpx-runtime
+permissions:
+  contents: read
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv python install 3.12
+      - name: Regenerate versioned lock for HTTPX
+        run: |
+          uv lock
+          python - <<'PY'
+          from pathlib import Path
+          import base64
+          import hashlib
+          raw = Path("uv.lock").read_bytes()
+          print("LOCK_SHA256=" + hashlib.sha256(raw).hexdigest())
+          print("LOCK_SIZE=" + str(len(raw)))
+          print("BEGIN_MEMBER02_LOCK")
+          encoded = base64.b64encode(raw).decode("ascii")
+          for index in range(0, len(encoded), 512):
+              print("MEMBER02_LOCK_B64=" + encoded[index:index + 512])
+          print("END_MEMBER02_LOCK")
+          PY
