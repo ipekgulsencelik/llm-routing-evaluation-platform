@@ -60,8 +60,7 @@ def test_provider_adapters_never_import_application_demo_or_member03_member04() 
     for path in sorted((PACKAGE / "adapters" / "providers").glob("*.py")):
         for module in _absolute_imports(path):
             assert not any(
-                module == prefix or module.startswith(prefix + ".")
-                for prefix in _FORBIDDEN_SHARED
+                module == prefix or module.startswith(prefix + ".") for prefix in _FORBIDDEN_SHARED
             ), f"Member02 provider dependency violation in {path.name}: {module}"
 
 
