@@ -24,7 +24,12 @@ from llm_routing_eval.core import (
 
 from .authorization import DenyAllOutbound, OutboundAuthorization
 from .response_mapping import GroqResponseMapper, failed
-from .transport import GroqTransport, UrllibGroqTransport
+from .transport import (
+    GroqNetworkError,
+    GroqTLSVerificationError,
+    GroqTransport,
+    UrllibGroqTransport,
+)
 
 _SAFE_MODEL_ID = re.compile(r"^[A-Za-z0-9_./-]{1,100}$")
 
@@ -118,6 +123,22 @@ class GroqChatProvider:
             try:
                 result = await self._transport.post_chat(
                     body, api_key=api_key, timeout_seconds=request.timeout_seconds
+                )
+            except GroqTLSVerificationError:
+                return failed(
+                    request,
+                    "GROQ_TLS_VERIFICATION_FAILED",
+                    retryable=False,
+                    origin=MetricOrigin.OBSERVED,
+                    latency_ms=(perf_counter() - started) * 1000,
+                )
+            except GroqNetworkError:
+                return failed(
+                    request,
+                    "GROQ_NETWORK_ERROR",
+                    retryable=True,
+                    origin=MetricOrigin.OBSERVED,
+                    latency_ms=(perf_counter() - started) * 1000,
                 )
             except TimeoutError:
                 return failed(
