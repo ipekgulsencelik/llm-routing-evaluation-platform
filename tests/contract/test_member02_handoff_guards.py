@@ -42,9 +42,11 @@ def _dependencies(tree: ast.AST, *, package: str) -> tuple[str, ...]:
             else:
                 base = node.module or ""
             if base:
-                modules.append(base)
-                # "from llm_routing_eval import adapters" must be checked
-                # as well as "import llm_routing_eval.adapters".
+                # A root namespace import is valid only through permitted
+                # concrete members (e.g. "from llm_routing_eval import core").
+                # Wildcard root imports remain rejected.
+                if base != _LOCAL_ROOT or any(alias.name == "*" for alias in node.names):
+                    modules.append(base)
                 modules.extend(base + "." + alias.name for alias in node.names if alias.name != "*")
     return tuple(modules)
 
