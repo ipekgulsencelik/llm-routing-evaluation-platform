@@ -13,13 +13,13 @@ from dataclasses import dataclass
 
 import httpx
 
+from llm_routing_eval.core import LLMProviderPort
+
 from .async_transport import AsyncClientGroqTransport, AsyncStreamingResponse
 from .authorization import OutboundAuthorization
 from .groq import GroqChatProvider, GroqProviderOptions
 from .observability import ObservedProvider, ProviderMetricsSink
 from .transport import GroqNetworkError, GroqTLSVerificationError
-
-from llm_routing_eval.core import LLMProviderPort
 
 
 @dataclass(frozen=True, slots=True)
