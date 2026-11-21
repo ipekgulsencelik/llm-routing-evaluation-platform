@@ -115,3 +115,21 @@ def test_router_config_rejects_oversized_and_non_mapping_documents(tmp_path: Pat
     non_map.write_text("[1, 2, 3]", encoding="utf-8")
     with pytest.raises(ValueError, match="ROUTER_CONFIG_INVALID"):
         read_routing_settings(non_map)
+
+
+
+def test_routing_policy_fingerprint_changes_for_model_rules_and_dev_samples() -> None:
+    base = read_routing_settings(CONFIG)
+    fingerprint = base.fingerprint()
+    assert fingerprint.startswith("sha256:") and len(fingerprint) == 71
+    assert fingerprint == read_routing_settings(CONFIG).fingerprint()
+    changed_rule = base.model_copy(
+        update={"models": base.models.model_copy(update={"large": "different-model"})}
+    )
+    assert changed_rule.fingerprint() != fingerprint
+    examples = list(base.knn.examples)
+    examples[0] = examples[0].model_copy(update={"input_text": "changed development text"})
+    changed_development = base.model_copy(
+        update={"knn": base.knn.model_copy(update={"examples": tuple(examples)})}
+    )
+    assert changed_development.fingerprint() != fingerprint
