@@ -60,9 +60,7 @@ def test_routing_config_validation_and_live_denial(
 
 def test_invalid_strategy_denied_without_provider_call(tmp_path: Path) -> None:
     output = tmp_path / "blocked.jsonl"
-    result = RUNNER.invoke(
-        app, ["run-routing", "--strategy", "unknown", "--output", str(output)]
-    )
+    result = RUNNER.invoke(app, ["run-routing", "--strategy", "unknown", "--output", str(output)])
     assert result.exit_code == 2
     assert "INVALID_ROUTING_STRATEGY" in result.output
     assert not output.exists()
