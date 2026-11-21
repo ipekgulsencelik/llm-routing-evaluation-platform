@@ -1,6 +1,6 @@
 # LLM Routing Evaluation Platform - V1.1
 
-**Status:** Member 01 core, application and CLI offline demo implemented. Member 02's four offline routing strategies, strict YAML composition and CLI are merged into main. The optional Groq adapter is available but no live benchmark endpoint is exposed. Live providers, production privacy, dataset evaluation and durable reporting remain pending.
+**Status:** Member 01 core/application and offline CLI are implemented. Member 02's four routers, Groq/HTTPX integration, reliability boundaries, safe observability and offline cross-member acceptance tests are merged. **Member 02's offline engineering handoff is ready for review; the full production/live benchmark is not ready.** Expert financial evaluation (Member 03) and production privacy, pricing and durable reporting (Member 04) are pending. See the [final Member 02 technical audit](docs/member02-final-technical-handoff.md).
 
 An open-source, domain-independent framework to evaluate whether LLM routing strategies improve cost, answer quality and latency on controlled workloads. The first domain pack targets **Turkish Retail Banking & Customer Support**.
 
@@ -52,13 +52,13 @@ Groq HTTP 429 numeric `Retry-After` is now parsed without retaining raw headers 
 
 ## Member 02 optional native-async Groq transport boundary
 
-An injectable `AsyncClientGroqTransport` supports bounded streaming and coroutine cancellation through an externally managed async HTTP client. It preserves the existing provider privacy gate and does not require an extra dependency to run offline tests. **It is not the live default, does not bundle an HTTPX dependency, and has not been validated against a real network connection.** See [async transport design and rollout requirements](docs/member02-async-transport.md).
+An injectable `AsyncClientGroqTransport` supports bounded streaming and coroutine cancellation through an externally managed async HTTP client. It preserves the existing provider privacy gate and does not require an extra dependency to run offline tests. **It is not the live default.** The project now pins `httpx==0.28.1`; the optional managed HTTPX path has loopback TCP/TLS cancellation tests, but no remote Groq connection or approved live run. See [async transport design and rollout requirements](docs/member02-async-transport.md).
 ## Member 02 managed HTTPX runtime (opt-in, not live-enabled)
 
-The repository now pins `httpx==0.28.1` in `pyproject.toml` and `uv.lock`. A managed `httpx.AsyncClient` can be injected into the Groq provider through `managed_httpx_groq_provider()` with bounded TLS-verified connection pooling, normalized timeouts and asynchronous response disposal. The default provider/CLI authorization is unchanged: **live banking benchmarking remains disabled**. Unit tests use HTTPX mock streams and prove no real network cancellation. See [managed HTTPX integration and remaining production gates](docs/member02-managed-httpx.md).
+The repository now pins `httpx==0.28.1` in `pyproject.toml` and `uv.lock`. A managed `httpx.AsyncClient` can be injected into the Groq provider through `managed_httpx_groq_provider()` with bounded TLS-verified connection pooling, normalized timeouts and asynchronous response disposal. The default provider/CLI authorization is unchanged: **live banking benchmarking remains disabled**. Unit tests use HTTPX mock streams; separate tests verify cancellation over real **localhost TCP sockets**, not a remote provider. See [managed HTTPX integration and remaining production gates](docs/member02-managed-httpx.md).
 ## Member 02 localhost TCP reliability tests
 
-The [loopback network reliability suite](docs/member02-loopback-network-reliability.md) verifies HTTPX against real **127.0.0.1 sockets**: successful streaming, read timeout, cancellation closing the TCP connection, and connection-pool saturation. It is included in the regular pytest/CI checks. **There are no external Groq calls**, and real TLS/DNS and deployment load/chaos tests remain future security release gates.
+The [loopback network reliability suite](docs/member02-loopback-network-reliability.md) verifies HTTPX against real **127.0.0.1 sockets**: successful streaming, read timeout, cancellation closing the TCP connection, and connection-pool saturation. It is included in the regular pytest/CI checks. **There are no external Groq calls**. Later tests cover local TLS and injected DNS errors; real remote TLS/DNS, deployment egress controls and sustained production load remain unverified.
 ## Member 02 TLS / DNS / remote-disconnect checks
 
 A new [network-failure integration suite](docs/member02-tls-dns-network-failures.md) exercises **real local TLS handshakes** using ephemeral test-only CA certificates, verifies that untrusted or hostname-mismatched certificates fail without retries, and tests synthetic DNS resolution failure plus abrupt TCP disconnects. `trustme==1.2.1` is a dev-only locked dependency; no certificates or keys are committed. Live provider access remains denied by default.
@@ -91,7 +91,7 @@ The generated JSONL contains a redacted execution trace, fixture-only evaluation
 
 ### Current verification constraints
 
-Current Member 02 observability branch validation (Python 3.12, `uv sync --locked`): `uv lock --check`, `ruff check .`, `ruff format --check .`, strict `mypy` and 230 `pytest` tests pass with 95% statement coverage. The GitHub Actions workflow runs the same offline gates plus a CLI smoke test. No live API calls were made. Docker remains a scaffold and is unverified (Member 04).
+Audited `main` commit `90d18e54`: Python 3.12, `uv lock --check`, `uv sync --locked`, Ruff lint/format, strict mypy and **244 tests passed at 95% repository-wide statement coverage**. The handoff branch passes **247 tests** with additional architecture/offline guard checks (95% global coverage). CI also validates offline CLI smoke and intentionally blocked Groq preflight. **No external Groq call or Member 04 Docker deployment test has been performed.** See [the handoff evidence and limitations](docs/member02-final-technical-handoff.md).
 
 ```bash
 uv lock --check
@@ -108,6 +108,7 @@ uv run pytest -q --cov=llm_routing_eval
 - [Member 01 implementation and handoff](docs/member01-implementation.md)
 - [Member 02 offline routing implementation](docs/member02-implementation.md)
 - [Member 02 enterprise hardening and release gates](docs/member02-enterprise-hardening.md)
+- [Member 02 final technical audit and cross-team handoff](docs/member02-final-technical-handoff.md)
 - [Member 02 Groq preflight and integration handoff](docs/member02-groq-preflight.md)
 - [Core contract specification](docs/contracts.md)
 - [Development roadmap](docs/development-roadmap.md)
