@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any, Protocol
@@ -12,12 +13,33 @@ from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 _ENDPOINT = "https://api.groq.com/openai/v1/chat/completions"
 _MAX_RESPONSE_BYTES = 1_048_576
+_NUMERIC_SECONDS = re.compile(r"^(?:0|[1-9][0-9]{0,31})(?:\.[0-9]{1,3})?$")
+
+
+def _retry_after_seconds(headers: Mapping[str, str] | None) -> float | None:
+    """Parse Groq's numeric Retry-After seconds without retaining raw headers.
+
+    The app won't sleep longer than a separately configured retry budget.
+    Unrecognized formats or excessive values intentionally do not become hints.
+    """
+    if headers is None:
+        return None
+    value = headers.get("Retry-After")
+    if value is None:
+        value = headers.get("retry-after")
+    if not isinstance(value, str) or _NUMERIC_SECONDS.fullmatch(value.strip()) is None:
+        return None
+    seconds = float(value)
+    # A very long numeric hint must never cause an earlier fallback retry.
+    # A saturated hint is greater than all allowed per-run wait budgets.
+    return min(seconds, 86_400.0)
 
 
 @dataclass(frozen=True, slots=True)
 class HttpResult:
     status_code: int
     body: Mapping[str, object] | None = None
+    retry_after_seconds: float | None = None
 
 
 class GroqTransport(Protocol):
@@ -61,7 +83,12 @@ class UrllibGroqTransport:
                 # A non-200 response must never be parsed as a successful completion.
                 # Do not read untrusted bodies for other status codes.
                 if response.status != 200:
-                    return HttpResult(status_code=response.status)
+                    hint = (
+                        _retry_after_seconds(getattr(response, "headers", None))
+                        if response.status == 429
+                        else None
+                    )
+                    return HttpResult(status_code=response.status, retry_after_seconds=hint)
                 raw = response.read(_MAX_RESPONSE_BYTES + 1)
                 if len(raw) > _MAX_RESPONSE_BYTES:
                     # Treat an oversized 200 response as a malformed completion,
@@ -79,6 +106,9 @@ class UrllibGroqTransport:
         except HTTPError as exc:
             # Do not load/log error bodies or redirects; close their file handles.
             try:
-                return HttpResult(status_code=exc.code)
+                hint = (
+                    _retry_after_seconds(getattr(exc, "headers", None)) if exc.code == 429 else None
+                )
+                return HttpResult(status_code=exc.code, retry_after_seconds=hint)
             finally:
                 exc.close()
