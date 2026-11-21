@@ -58,13 +58,27 @@ class UrllibGroqTransport:
         try:
             opener = build_opener(_RejectRedirects())
             with opener.open(request, timeout=timeout_seconds) as response:
+                # A non-200 response must never be parsed as a successful completion.
+                # Do not read untrusted bodies for other status codes.
+                if response.status != 200:
+                    return HttpResult(status_code=response.status)
                 raw = response.read(_MAX_RESPONSE_BYTES + 1)
                 if len(raw) > _MAX_RESPONSE_BYTES:
-                    return HttpResult(status_code=502)
-                decoded = json.loads(raw)
+                    # Treat an oversized 200 response as a malformed completion,
+                    # not as an HTTP 502 (which the orchestrator would retry).
+                    return HttpResult(status_code=200)
+                try:
+                    decoded = json.loads(raw)
+                except (ValueError, UnicodeError, RecursionError):
+                    # Malformed provider JSON is not a transient transport failure.
+                    # The mapper turns HTTP 200 + no body into a non-retryable code.
+                    return HttpResult(status_code=200)
                 if not isinstance(decoded, dict):
-                    return HttpResult(status_code=502)
-                return HttpResult(status_code=response.status, body=decoded)
+                    return HttpResult(status_code=200)
+                return HttpResult(status_code=200, body=decoded)
         except HTTPError as exc:
-            # Never load or log provider error response bodies, even 4xx/5xx.
-            return HttpResult(status_code=exc.code)
+            # Do not load/log error bodies or redirects; close their file handles.
+            try:
+                return HttpResult(status_code=exc.code)
+            finally:
+                exc.close()
