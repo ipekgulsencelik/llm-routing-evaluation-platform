@@ -21,9 +21,11 @@ SRP: mapping, authorization, transport and orchestration are separated. DIP: orc
 2. Failed/throwing authorization, non-allowlisted model, unsupported generation settings and prompt or completion-token budget violations reject requests **before** transport.
 3. The adapter bounds simultaneous calls with a semaphore. This is an in-process bound, not a distributed quota or rate limiter.
 4. The HTTP transport refuses redirects, limits response size, and never reads/provider-logs error bodies. It uses standard-library HTTPS and `asyncio.to_thread`, so cancelling a coroutine does **not** forcibly terminate an active OS-level request.
-5. HTTP 429, 408, 5xx errors are normalized to safe categories. Existing orchestration owns bounded retries; server Retry-After, rate budgeting and circuit-breaking remain future work.
+5. HTTP 429, 408, 409, 5xx errors are normalized to safe categories. Existing orchestration owns bounded retries; server Retry-After, rate budgeting and circuit-breaking remain future work.
 6. Truncated (`finish_reason=length`), tool-call, wrong-model and malformed provider responses are not treated as valid scored answers. Observed usage is retained for truncated responses, including cached/reasoning counts where supplied.
 7. Provider identifiers are accepted only if they match a conservative safe-character rule. No API keys, raw prompt text, provider error bodies or exception strings are persisted by these adapters.
+
+The HTTP transport also maps malformed/oversized HTTP 200 payloads to a non-retryable invalid response rather than a false server error. See [Groq transport hardening](member02-transport-hardening.md).
 
 **Security limitation:** Implementing this authorization protocol does not make any application privacy adapter automatically compliant or anonymizing. Member 04 must supply a reviewed production authorization implementation. This repository intentionally supplies no permissive production implementation.
 

@@ -128,6 +128,10 @@ class GroqResponseMapper:
                 status=CallStatus.TIMEOUT,
                 retryable=True,
             )
+        if status == 409:
+            # Groq SDKs classify HTTP 409 as transient; attempts remain
+            # bounded by the application's existing global call budget.
+            return http_failure("GROQ_CONFLICT", retryable=True)
         if status >= 500:
             return http_failure("GROQ_SERVER_ERROR", retryable=True)
         if status != 200:
