@@ -73,9 +73,7 @@ def test_optional_httpx_observer_records_safe_outcomes_and_keeps_privacy_boundar
             budget=ProviderErrorBudget(min_observed_attempts=2, max_failure_fraction=0.25)
         )
         async with managed_httpx_groq_provider(
-            GroqProviderOptions(
-                allowed_models=frozenset({MODEL}), live_enabled=True
-            ),
+            GroqProviderOptions(allowed_models=frozenset({MODEL}), live_enabled=True),
             outbound_authorization=TestOnlyAuthorization(),
             metrics_sink=collector,
             mock_transport=httpx.MockTransport(handler),
@@ -141,9 +139,7 @@ def test_no_observer_keeps_existing_provider_behavior_and_type(
     async def run() -> CallStatus:
         async with managed_httpx_groq_provider(
             GroqProviderOptions(allowed_models=frozenset({MODEL}), live_enabled=True),
-            mock_transport=httpx.MockTransport(
-                lambda outgoing: httpx.Response(500)
-            ),
+            mock_transport=httpx.MockTransport(lambda outgoing: httpx.Response(500)),
         ) as provider:
             assert not isinstance(provider, ObservedProvider)
             return (await provider.generate(request(0))).status
