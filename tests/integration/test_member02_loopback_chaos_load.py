@@ -74,10 +74,6 @@ def _headers(size: int) -> bytes:
     )
 
 
-def _stream(client: HttpxStreamingClient, url: str) -> AsyncIterator[bytes]:
-    raise AssertionError("This method is intentionally never used")
-
-
 def _request(client: HttpxStreamingClient, url: str):
     return client.stream(
         "POST",
@@ -100,6 +96,7 @@ def _settings(max_connections: int) -> HttpxPoolSettings:
 
 def test_burst_of_16_real_loopback_requests_obeys_four_connection_limit() -> None:
     """No connection beyond four should be admitted while four are held."""
+
     async def run() -> tuple[int, int, int, list[int]]:
         entered = asyncio.Event()
         release = asyncio.Event()
@@ -160,6 +157,7 @@ def test_burst_of_16_real_loopback_requests_obeys_four_connection_limit() -> Non
 
 def test_cancellation_storm_closes_all_tcp_streams_then_pool_recovers() -> None:
     """Cancel three blocked readers and prove a fourth request can still finish."""
+
     async def run() -> tuple[int, int, bool]:
         started = asyncio.Event()
         all_disconnected = asyncio.Event()
@@ -214,9 +212,10 @@ def test_cancellation_storm_closes_all_tcp_streams_then_pool_recovers() -> None:
                     await asyncio.wait_for(all_disconnected.wait(), timeout=3.0)
                     async with _request(client, url) as response:
                         body = b"".join([chunk async for chunk in response.aiter_bytes()])
-                        recovered = response.status_code == 200 and json.loads(body)[
-                            "status"
-                        ] == "recovered"
+                        recovered = (
+                            response.status_code == 200
+                            and json.loads(body)["status"] == "recovered"
+                        )
                 finally:
                     for task in tasks:
                         if not task.done():
