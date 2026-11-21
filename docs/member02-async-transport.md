@@ -1,5 +1,7 @@
 # Member 02 — Cancellation-Cooperative Async Streaming Transport
 
+> **Historical milestone note (2026-11-21):** The original transport-port design below predates the pinned HTTPX 0.28.1 runtime and passing loopback TCP/TLS tests. For current verified capabilities and release gates, see the [final technical audit](member02-final-technical-handoff.md).
+
 **Status:** Available as a DI-composed transport alternative, not the live default or a completed production HTTP rollout. The evaluation CLI remains offline and Groq authorization remains deny-by-default.
 
 ## Design and SOLID boundaries
