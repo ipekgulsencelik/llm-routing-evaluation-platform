@@ -84,11 +84,7 @@ class ContractPrivacyDouble:
     def sanitize(self, text: str, *, purpose: str) -> SanitizedText:
         self.purposes.append(purpose)
         expected = RAW_PROMPT if purpose == "routing" else SAFE_PROMPT
-        allow = (
-            purpose in ("routing", "provider")
-            and purpose != self.deny_at
-            and text == expected
-        )
+        allow = purpose in ("routing", "provider") and purpose != self.deny_at and text == expected
         return SanitizedText(
             text=SAFE_PROMPT if allow else None,
             policy_version="test_allowlist_only_v0",
@@ -205,9 +201,7 @@ async def execute(
             allowed_models=frozenset({POLICY.models.small, POLICY.models.large}),
             live_enabled=True,
         ),
-        outbound_authorization=SyntheticOnlyOutboundApproval()
-        if outbound_authorized
-        else None,
+        outbound_authorization=SyntheticOnlyOutboundApproval() if outbound_authorized else None,
         metrics_sink=metrics,
         mock_transport=httpx.MockTransport(fake_groq),
     ) as provider:
@@ -260,9 +254,7 @@ def test_all_real_routers_compose_with_cross_member_ports_and_redact_golden(
     assert result.evaluations[0].review_status is None
     assert len(repository.traces) == len(repository.evaluations) == len(repository.reports) == 1
     trace_attempts = [
-        step
-        for step in result.traces[0].steps
-        if step.kind is TraceStepKind.PROVIDER_ATTEMPT
+        step for step in result.traces[0].steps if step.kind is TraceStepKind.PROVIDER_ATTEMPT
     ]
     assert len(trace_attempts) == metrics.observed_attempts == len(requests)
     assert metrics.observed_successes == len(requests)
@@ -273,8 +265,13 @@ def test_all_real_routers_compose_with_cross_member_ports_and_redact_golden(
         for item in (result.report, *repository.traces, *repository.evaluations)
     )
     for forbidden in (
-        RAW_PROMPT, METADATA_CANARY, GOLDEN_CANARY, ANSWER_CANARY,
-        NOTE_CANARY, KEY_CANARY, "test-wire-id"
+        RAW_PROMPT,
+        METADATA_CANARY,
+        GOLDEN_CANARY,
+        ANSWER_CANARY,
+        NOTE_CANARY,
+        KEY_CANARY,
+        "test-wire-id",
     ):
         assert forbidden not in serialized
     assert metrics.scope == "DIAGNOSTIC_ONLY"
@@ -338,7 +335,6 @@ def test_evaluator_failure_fails_safe_without_quality_claims_or_data_leaks(
     assert result.evaluations[0].status is EvaluationStatus.FAILED
     assert result.evaluations[0].quality_scores == {}
     assert "PRIVATE_EVALUATOR_EXCEPTION_BODY" not in (
-        result.report.model_dump_json() + "".join(
-            item.model_dump_json() for item in repository.evaluations
-        )
+        result.report.model_dump_json()
+        + "".join(item.model_dump_json() for item in repository.evaluations)
     )
