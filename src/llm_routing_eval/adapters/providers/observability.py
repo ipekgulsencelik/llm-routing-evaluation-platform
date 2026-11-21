@@ -10,10 +10,9 @@ from __future__ import annotations
 import asyncio
 from collections import Counter, deque
 from collections.abc import Sequence
-from typing import Literal, Protocol
+from typing import Literal, Protocol, Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
-from typing_extensions import Self
 
 from llm_routing_eval.core import (
     CallStatus,
