@@ -115,6 +115,7 @@ def test_non_object_or_invalid_or_oversized_200_is_nonretryable(
         provider="groq",
         model="synthetic-small",
         prompt="fixture",
+        timeout_seconds=3.5,
     )
     mapped = GroqResponseMapper().map(request, result, elapsed_ms=1.0)
     assert mapped.status is CallStatus.FAILED
@@ -180,6 +181,7 @@ def test_transient_409_is_bounded_retryable_and_redacted() -> None:
         provider="groq",
         model="synthetic-small",
         prompt="fixture",
+        timeout_seconds=3.5,
     )
     mapped = GroqResponseMapper().map(
         request,
