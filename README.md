@@ -38,6 +38,14 @@ uv run llm-routing-eval compare-routing --output artifacts/offline_comparison.js
 
 The report includes success and model-attempt counts, requests-per-case, model mix, local elapsed times, simulated token totals **and per-attempt averages**, fixture-only score coverage, routing/dataset fingerprints, and explicit unknown cost. Simulated data and two examples are **not** a live financial quality or latency benchmark. See [comparison design and measurement caveats](docs/member02-comparison.md).
 
+## Member 02 Groq integration preflight (network-free)
+
+```powershell
+uv run llm-routing-eval groq-preflight
+```
+
+The expected result is **BLOCKED (exit code 2)** until separately approved privacy authorization, expert evaluation, verified pricing and actual model-account access are in place. This command **never calls Groq** and does not print secrets. All four strategies have a separate Groq wire-protocol integration test suite using an injected synthetic HTTP stub; it is not a live performance benchmark. See [preflight and cross-member handoff](docs/member02-groq-preflight.md).
+
 ## Member 01 offline smoke test
 
 The CLI is deliberately limited to two allowlisted synthetic examples and deterministic test doubles. **It does not judge financial correctness and never contacts a real API.**
@@ -75,6 +83,7 @@ uv run pytest -q --cov=llm_routing_eval
 - [Member 01 implementation and handoff](docs/member01-implementation.md)
 - [Member 02 offline routing implementation](docs/member02-implementation.md)
 - [Member 02 enterprise hardening and release gates](docs/member02-enterprise-hardening.md)
+- [Member 02 Groq preflight and integration handoff](docs/member02-groq-preflight.md)
 - [Core contract specification](docs/contracts.md)
 - [Development roadmap](docs/development-roadmap.md)
 - [Contributor guidance](docs/contributing.md)
