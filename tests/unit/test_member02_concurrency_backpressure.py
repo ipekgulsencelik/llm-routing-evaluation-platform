@@ -202,14 +202,8 @@ def test_denied_concurrent_requests_never_reach_httpx(
             ),
             mock_transport=httpx.MockTransport(never_outbound),
         ) as provider:
-            responses = await asyncio.gather(
-                *(provider.generate(_request(i)) for i in range(24))
-            )
-            return [
-                (r.status, r.error.category)
-                for r in responses
-                if r.error is not None
-            ]
+            responses = await asyncio.gather(*(provider.generate(_request(i)) for i in range(24)))
+            return [(r.status, r.error.category) for r in responses if r.error is not None]
 
     outcomes = asyncio.run(run())
     assert len(outcomes) == 24
@@ -246,9 +240,7 @@ def test_retryable_provider_failures_never_exceed_global_attempt_budget(
             mock_transport=httpx.MockTransport(failing_endpoint),
         ) as provider:
             service = BenchmarkOrchestrator(
-                router=AlwaysLargeRouter(
-                    ModelPair(small="openai/gpt-oss-20b", large=_MODEL)
-                ),
+                router=AlwaysLargeRouter(ModelPair(small="openai/gpt-oss-20b", large=_MODEL)),
                 provider=provider,
                 evaluator=DemoFixtureEvaluator(),
                 privacy=AllowlistedDemoPrivacy(),
@@ -281,9 +273,8 @@ def test_retryable_provider_failures_never_exceed_global_attempt_budget(
                 for step in trace.steps
                 if step.kind is TraceStepKind.PROVIDER_ATTEMPT
             ]
-            serialized = (
-                result.report.model_dump_json()
-                + "".join(trace.model_dump_json() for trace in result.traces)
+            serialized = result.report.model_dump_json() + "".join(
+                trace.model_dump_json() for trace in result.traces
             )
             return len(attempts), calls, serialized
 
@@ -303,9 +294,7 @@ def test_429_retry_after_larger_than_budget_performs_no_early_retry(
     async def rate_limited(request: httpx.Request) -> httpx.Response:
         nonlocal calls
         calls += 1
-        return httpx.Response(
-            429, headers={"Retry-After": "15"}, json={"error": "redacted"}
-        )
+        return httpx.Response(429, headers={"Retry-After": "15"}, json={"error": "redacted"})
 
     async def run() -> int:
         async with managed_httpx_groq_provider(
@@ -313,13 +302,12 @@ def test_429_retry_after_larger_than_budget_performs_no_early_retry(
             outbound_authorization=SyntheticApproval(),
             mock_transport=httpx.MockTransport(rate_limited),
         ) as provider:
+
             async def no_sleep(delay: float) -> None:
                 raise AssertionError("Retry-After above budget must not sleep/retry")
 
             service = BenchmarkOrchestrator(
-                router=AlwaysLargeRouter(
-                    ModelPair(small="openai/gpt-oss-20b", large=_MODEL)
-                ),
+                router=AlwaysLargeRouter(ModelPair(small="openai/gpt-oss-20b", large=_MODEL)),
                 provider=provider,
                 evaluator=DemoFixtureEvaluator(),
                 privacy=AllowlistedDemoPrivacy(),
