@@ -50,9 +50,9 @@ def test_router_layer_never_imports_application_provider_or_evaluation_code() ->
     )
     for path in sorted((PACKAGE / "routing").glob("*.py")):
         for module in _absolute_imports(path):
-            assert not any(module == prefix or module.startswith(prefix + ".") for prefix in forbidden), (
-                f"Member02 router dependency violation in {path.name}: {module}"
-            )
+            assert not any(
+                module == prefix or module.startswith(prefix + ".") for prefix in forbidden
+            ), f"Member02 router dependency violation in {path.name}: {module}"
 
 
 def test_provider_adapters_never_import_application_demo_or_member03_member04() -> None:
