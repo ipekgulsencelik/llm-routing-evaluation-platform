@@ -61,6 +61,14 @@ def _decode_success_body(raw: bytes) -> HttpResult:
     )
 
 
+class GroqTLSVerificationError(Exception):
+    """Non-retryable certificate/hostname verification failure (redacted)."""
+
+
+class GroqNetworkError(Exception):
+    """Retryable TCP/connectivity/protocol failure (redacted)."""
+
+
 class GroqTransport(Protocol):
     async def post_chat(
         self, body: Mapping[str, object], *, api_key: str, timeout_seconds: float

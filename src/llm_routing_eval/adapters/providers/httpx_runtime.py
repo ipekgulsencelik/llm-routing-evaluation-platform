@@ -6,6 +6,7 @@ The provider must still pass all existing fail-closed live authorization gates.
 
 from __future__ import annotations
 
+import ssl
 from collections.abc import AsyncIterator, Mapping
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
@@ -15,6 +16,7 @@ import httpx
 from .async_transport import AsyncClientGroqTransport, AsyncStreamingResponse
 from .authorization import OutboundAuthorization
 from .groq import GroqChatProvider, GroqProviderOptions
+from .transport import GroqNetworkError, GroqTLSVerificationError
 
 
 @dataclass(frozen=True, slots=True)
@@ -35,6 +37,20 @@ class HttpxPoolSettings:
             raise ValueError("HTTPX_CONNECT_TIMEOUT_INVALID")
         if not 0 < self.pool_timeout_seconds <= 30:
             raise ValueError("HTTPX_POOL_TIMEOUT_INVALID")
+
+
+def _is_tls_verification_failure(exc: BaseException) -> bool:
+    """Inspect bounded exception-chain *types*; never inspect/log remote text."""
+    current: BaseException | None = exc
+    seen: set[int] = set()
+    for _ in range(10):
+        if current is None or id(current) in seen:
+            break
+        seen.add(id(current))
+        if isinstance(current, (ssl.SSLCertVerificationError, ssl.CertificateError)):
+            return True
+        current = current.__cause__ or current.__context__
+    return False
 
 
 class HttpxStreamingClient:
@@ -76,6 +92,12 @@ class HttpxStreamingClient:
             # Normalize SDK timeouts to the existing provider contract; never
             # include URL, request headers, exception strings or provider text.
             raise TimeoutError("GROQ_HTTP_TIMEOUT") from None
+        except httpx.TransportError as exc:
+            if _is_tls_verification_failure(exc):
+                # Certificate, CA or hostname mismatch is not transient:
+                # retrying would waste budget or weaken the security boundary.
+                raise GroqTLSVerificationError("GROQ_TLS_VERIFICATION_FAILED") from None
+            raise GroqNetworkError("GROQ_NETWORK_ERROR") from None
 
 
 @asynccontextmanager
