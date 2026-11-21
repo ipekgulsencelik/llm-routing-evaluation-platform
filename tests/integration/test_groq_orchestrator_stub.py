@@ -70,9 +70,7 @@ class StubGroqTransport:
             {
                 "id": "test-safe-id",
                 "model": model,
-                "choices": [
-                    {"message": {"content": DEMO_RESPONSE}, "finish_reason": "stop"}
-                ],
+                "choices": [{"message": {"content": DEMO_RESPONSE}, "finish_reason": "stop"}],
                 "usage": {"prompt_tokens": 16, "completion_tokens": 8},
             },
         )
@@ -159,7 +157,8 @@ def test_all_strategies_compose_with_groq_stub_without_network(
     stub = StubGroqTransport()
     result = asyncio.run(execute(strategy, stub, authorized=True))
     calls = [
-        step for trace in result.traces
+        step
+        for trace in result.traces
         for step in trace.steps
         if step.kind is TraceStepKind.PROVIDER_ATTEMPT
     ]
@@ -185,9 +184,7 @@ def test_outbound_authorization_denies_even_with_key_and_live_flag(
     monkeypatch.setenv("LLM_ROUTING_ALLOW_LIVE", "1")
     monkeypatch.setenv("GROQ_API_KEY", "SYNTHETIC_TEST_CREDENTIAL")
     transport = StubGroqTransport()
-    result = asyncio.run(
-        execute(StrategyId.ALWAYS_LARGE, transport, authorized=False)
-    )
+    result = asyncio.run(execute(StrategyId.ALWAYS_LARGE, transport, authorized=False))
     assert transport.calls == []
     assert all(trace.status is ExecutionStatus.FAILED for trace in result.traces)
     assert all(ev.status is EvaluationStatus.NOT_EVALUATED for ev in result.evaluations)
@@ -199,8 +196,7 @@ def test_outbound_authorization_denies_even_with_key_and_live_flag(
     ]
     assert all(ev.call_status is CallStatus.FAILED for ev in events)
     assert all(
-        ev.error is not None and ev.error.code == "GROQ_PRIVACY_NOT_AUTHORIZED"
-        for ev in events
+        ev.error is not None and ev.error.code == "GROQ_PRIVACY_NOT_AUTHORIZED" for ev in events
     )
 
 
@@ -220,7 +216,9 @@ def test_rate_limit_retries_are_traced_and_bounded(
     assert len(stub.calls) == 3
     assert len(steps) == 3
     assert [step.call_status for step in steps] == [
-        CallStatus.RATE_LIMITED, CallStatus.SUCCESS, CallStatus.SUCCESS
+        CallStatus.RATE_LIMITED,
+        CallStatus.SUCCESS,
+        CallStatus.SUCCESS,
     ]
     assert all(trace.status is ExecutionStatus.COMPLETED for trace in result.traces)
     assert "UNSAFE_PROVIDER_ERROR_SHOULD_NOT_APPEAR" not in result.report.model_dump_json()
