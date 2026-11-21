@@ -1,1 +1,11 @@
-"""Package scaffold; implementation will be added in milestone M1/M2."""
+"""Provider adapters behind the shared LLMProviderPort (never imported by Core)."""
+
+from .groq import GroqChatProvider, GroqProviderOptions, GroqTransport, HttpResult, UrllibGroqTransport
+
+__all__ = [
+    "GroqChatProvider",
+    "GroqProviderOptions",
+    "GroqTransport",
+    "HttpResult",
+    "UrllibGroqTransport",
+]
