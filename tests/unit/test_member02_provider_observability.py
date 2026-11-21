@@ -87,13 +87,15 @@ def test_event_contract_forbids_request_metadata_or_secrets() -> None:
         assert forbidden not in content
     with pytest.raises(ValidationError):
         ProviderTelemetryEvent.model_validate(
-            {"kind": "RESULT", "status": "SUCCESS", "metric_origin": "OBSERVED",
-             "prompt": _FAKE_PROMPT}
+            {
+                "kind": "RESULT",
+                "status": "SUCCESS",
+                "metric_origin": "OBSERVED",
+                "prompt": _FAKE_PROMPT,
+            }
         )
     with pytest.raises(ValidationError):
-        ProviderTelemetryEvent(
-            kind="CANCELLED", status=CallStatus.TIMEOUT
-        )
+        ProviderTelemetryEvent(kind="CANCELLED", status=CallStatus.TIMEOUT)
     with pytest.raises(ValidationError):
         ProviderTelemetryEvent(
             kind="RESULT",
@@ -108,9 +110,7 @@ def test_observed_budget_exhausts_at_five_percent_threshold_and_tail_sample_gate
     for i in range(20):
         status = CallStatus.SUCCESS if i < 18 else CallStatus.RATE_LIMITED
         collector.record(
-            ProviderTelemetryEvent.from_response(
-                _response(status=status, latency_ms=float(i + 1))
-            )
+            ProviderTelemetryEvent.from_response(_response(status=status, latency_ms=float(i + 1)))
         )
     summary = collector.snapshot()
     assert summary.scope == "DIAGNOSTIC_ONLY"
@@ -127,9 +127,11 @@ def test_observed_budget_exhausts_at_five_percent_threshold_and_tail_sample_gate
     assert summary.observed_status_counts[CallStatus.RATE_LIMITED] == 2
     assert summary.observed_error_categories[ErrorCategory.RATE_LIMIT] == 2
 
-    collector.record(ProviderTelemetryEvent.from_response(_response(
-        origin=MetricOrigin.SIMULATED, latency_ms=None
-    )))
+    collector.record(
+        ProviderTelemetryEvent.from_response(
+            _response(origin=MetricOrigin.SIMULATED, latency_ms=None)
+        )
+    )
     summary = collector.snapshot()
     assert summary.pretransport_results == 1
     assert summary.observed_attempts == 20
@@ -168,9 +170,11 @@ def test_insufficient_coverage_must_not_claim_budget_or_p95() -> None:
 def test_missing_latency_and_mixed_non_observed_are_excluded_from_percentiles() -> None:
     collector = InMemoryProviderMetrics()
     collector.record(ProviderTelemetryEvent.from_response(_response(latency_ms=None)))
-    collector.record(ProviderTelemetryEvent.from_response(
-        _response(origin=MetricOrigin.SIMULATED, latency_ms=987654.0)
-    ))
+    collector.record(
+        ProviderTelemetryEvent.from_response(
+            _response(origin=MetricOrigin.SIMULATED, latency_ms=987654.0)
+        )
+    )
     collector.record(ProviderTelemetryEvent(kind="CANCELLED"))
     collector.record(ProviderTelemetryEvent(kind="EXCEPTION"))
     snapshot = collector.snapshot()
@@ -188,9 +192,7 @@ def test_missing_latency_and_mixed_non_observed_are_excluded_from_percentiles() 
 def test_window_is_bounded_and_history_does_not_inflate_active_budget() -> None:
     collector = InMemoryProviderMetrics(max_events=20)
     for _ in range(10):
-        collector.record(ProviderTelemetryEvent.from_response(
-            _response(status=CallStatus.TIMEOUT)
-        ))
+        collector.record(ProviderTelemetryEvent.from_response(_response(status=CallStatus.TIMEOUT)))
     for _ in range(20):
         collector.record(ProviderTelemetryEvent.from_response(_response()))
     summary = collector.snapshot()
