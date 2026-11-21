@@ -4,7 +4,7 @@ All tests use httpx.MockTransport or an in-memory AsyncByteStream. No network.
 """
 
 import asyncio
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Awaitable, Callable
 
 import httpx
 import pytest
@@ -29,7 +29,7 @@ class SyntheticOnlyApproval:
 
 
 class TrackingMockTransport(httpx.MockTransport):
-    def __init__(self, handler: httpx.AsyncRequestHandler) -> None:
+    def __init__(self, handler: Callable[[httpx.Request], Awaitable[httpx.Response]]) -> None:
         super().__init__(handler)
         self.closed_by_owner = False
 
@@ -153,7 +153,12 @@ def test_httpx_timeout_is_normalized_to_safe_provider_timeout(
         ) as provider:
             result = await provider.generate(case())
             assert result.error is not None
-            return result.status, result.error.code, result.error.retryable, result.model_dump_json()
+            return (
+                result.status,
+                result.error.code,
+                result.error.retryable,
+                result.model_dump_json(),
+            )
 
     status, code, retryable, serialized = asyncio.run(run())
     assert status is CallStatus.TIMEOUT
@@ -240,7 +245,10 @@ def test_cancellation_interrupts_httpx_stream_and_closes_resources(
     [
         ({"max_connections": 0}, "HTTPX_POOL_CONNECTIONS_INVALID"),
         ({"max_connections": 33}, "HTTPX_POOL_CONNECTIONS_INVALID"),
-        ({"max_connections": 2, "max_keepalive_connections": 3}, "HTTPX_KEEPALIVE_CONNECTIONS_INVALID"),
+        (
+            {"max_connections": 2, "max_keepalive_connections": 3},
+            "HTTPX_KEEPALIVE_CONNECTIONS_INVALID",
+        ),
         ({"connect_timeout_seconds": 0}, "HTTPX_CONNECT_TIMEOUT_INVALID"),
         ({"pool_timeout_seconds": 0}, "HTTPX_POOL_TIMEOUT_INVALID"),
     ],
