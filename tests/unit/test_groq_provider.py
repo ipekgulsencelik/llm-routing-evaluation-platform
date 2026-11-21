@@ -73,12 +73,8 @@ class ExplodingApproval:
         raise RuntimeError("SECRET_FROM_PRIVACY_SYSTEM")
 
 
-def fixture_provider(
-    config: GroqProviderOptions, *, transport: GroqTransport
-) -> GroqChatProvider:
-    return GroqChatProvider(
-        config, transport=transport, outbound_authorization=FixtureApproval()
-    )
+def fixture_provider(config: GroqProviderOptions, *, transport: GroqTransport) -> GroqChatProvider:
+    return GroqChatProvider(config, transport=transport, outbound_authorization=FixtureApproval())
 
 
 def test_fails_closed_before_transport_without_opt_in(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -223,7 +219,6 @@ def test_transport_timeout_and_exception_are_redacted_and_bounded(
     assert "PRIVATE_SERVICE_DETAILS" not in failed.model_dump_json()
 
 
-
 def test_outbound_authorization_defaults_to_deny_all(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -288,9 +283,7 @@ def test_budget_rejections_precede_network(
                 200,
                 {
                     "model": MODEL,
-                    "choices": [
-                        {"message": {"content": "partial"}, "finish_reason": "length"}
-                    ],
+                    "choices": [{"message": {"content": "partial"}, "finish_reason": "length"}],
                     "usage": {"prompt_tokens": 10, "completion_tokens": 12},
                 },
             ),

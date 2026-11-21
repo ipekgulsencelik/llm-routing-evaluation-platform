@@ -64,9 +64,7 @@ class RunOptions(BaseModel):
     temperature: float | None = Field(default=0, ge=0, le=2)
     max_output_tokens: int | None = Field(default=128, gt=0)
     prompt_version: str = "offline-demo-v1"
-    routing_policy_sha256: str | None = Field(
-        default=None, pattern=r"^sha256:[0-9a-f]{64}$"
-    )
+    routing_policy_sha256: str | None = Field(default=None, pattern=r"^sha256:[0-9a-f]{64}$")
 
     @model_validator(mode="after")
     def validate_models(self) -> Self:

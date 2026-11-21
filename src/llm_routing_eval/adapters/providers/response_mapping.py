@@ -93,9 +93,7 @@ def _choice(payload: Mapping[str, object]) -> tuple[str | None, str | None]:
 class GroqResponseMapper:
     """A single responsibility: validate and normalize one completed HTTP result."""
 
-    def map(
-        self, request: ModelRequest, result: HttpResult, *, elapsed_ms: float
-    ) -> ModelResponse:
+    def map(self, request: ModelRequest, result: HttpResult, *, elapsed_ms: float) -> ModelResponse:
         error_kwargs = {"origin": MetricOrigin.OBSERVED, "latency_ms": elapsed_ms}
         status = result.status_code
         if status == 429:

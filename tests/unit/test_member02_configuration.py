@@ -117,7 +117,6 @@ def test_router_config_rejects_oversized_and_non_mapping_documents(tmp_path: Pat
         read_routing_settings(non_map)
 
 
-
 def test_routing_policy_fingerprint_changes_for_model_rules_and_dev_samples() -> None:
     base = read_routing_settings(CONFIG)
     fingerprint = base.fingerprint()

@@ -98,9 +98,7 @@ class GroqChatProvider:
         except Exception:
             permitted = False
         if not permitted:
-            return failed(
-                request, "GROQ_PRIVACY_NOT_AUTHORIZED", category=ErrorCategory.PRIVACY
-            )
+            return failed(request, "GROQ_PRIVACY_NOT_AUTHORIZED", category=ErrorCategory.PRIVACY)
         api_key = os.getenv(self._options.api_key_env)
         if not api_key or not api_key.strip():
             return failed(request, "GROQ_API_KEY_MISSING")
@@ -140,6 +138,4 @@ class GroqChatProvider:
                     origin=MetricOrigin.OBSERVED,
                     latency_ms=(perf_counter() - started) * 1000,
                 )
-            return self._mapper.map(
-                request, result, elapsed_ms=(perf_counter() - started) * 1000
-            )
+            return self._mapper.map(request, result, elapsed_ms=(perf_counter() - started) * 1000)
