@@ -142,7 +142,11 @@ def test_provider_layer_depends_only_on_core_and_provider_implementations() -> N
         ("provider", _PROVIDER_NAMESPACE, "from llm_routing_eval.privacy import adapter"),
         ("provider", _PROVIDER_NAMESPACE, "import llm_routing_eval.application"),
         ("provider", _PROVIDER_NAMESPACE, "import importlib as il\nil.import_module(name)"),
-        ("router", _ROUTER_NAMESPACE, "from importlib import import_module as loader\nloader(name)"),
+        (
+            "router",
+            _ROUTER_NAMESPACE,
+            "from importlib import import_module as loader\nloader(name)",
+        ),
         ("provider", _PROVIDER_NAMESPACE, "__import__(name)"),
     ],
 )
