@@ -65,6 +65,9 @@ A new [network-failure integration suite](docs/member02-tls-dns-network-failures
 ## Member 02 concurrency and cancellation chaos tests
 
 The [concurrency/backpressure and local-TCP chaos gates](docs/member02-chaos-backpressure-gates.md) verify provider semaphore limits, default-deny privacy under concurrent load, cancellation of queued requests, retry ceilings, HTTPX connection-pool caps, and cleanup after multiple canceled local socket streams. They are included in the standard offline CI test suite. **These are functional safety checks, not live throughput, financial quality, or Groq performance benchmarks.**
+## Member 02 privacy-safe provider observability (opt-in)
+
+An optional [bounded provider metrics adapter](docs/member02-provider-observability.md) now provides fixed-cardinality status/error-category counters, measured-transport latency samples, minimum-coverage p50/p95, and diagnostic-only provider-attempt error-budget checks. It stores **no prompts, outputs, credentials or request identifiers**, and is never automatically attached to a network exporter. Pre-transport privacy denials, missing data and cancellations remain separate from observed provider-attempt denominators. `managed_httpx_groq_provider(metrics_sink=...)` permits explicit injection; the default Groq authorization and live CLI remain blocked.
 ## Member 01 offline smoke test
 
 The CLI is deliberately limited to two allowlisted synthetic examples and deterministic test doubles. **It does not judge financial correctness and never contacts a real API.**
@@ -85,7 +88,7 @@ The generated JSONL contains a redacted execution trace, fixture-only evaluation
 
 ### Current verification constraints
 
-Latest Member 02 hardening PR verification (Python 3.12, `uv sync --locked`): `uv lock --check`, `ruff check .`, `ruff format --check .`, strict `mypy` and 103 `pytest` tests pass with 93% statement coverage. The GitHub Actions workflow runs the same offline gates plus a CLI smoke test. No live API calls were made. Docker remains a scaffold and is unverified (Member 04).
+Current Member 02 observability branch validation (Python 3.12, `uv sync --locked`): `uv lock --check`, `ruff check .`, `ruff format --check .`, strict `mypy` and 230 `pytest` tests pass with 95% statement coverage. The GitHub Actions workflow runs the same offline gates plus a CLI smoke test. No live API calls were made. Docker remains a scaffold and is unverified (Member 04).
 
 ```bash
 uv lock --check
