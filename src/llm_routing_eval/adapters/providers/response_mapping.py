@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import re
 from collections.abc import Mapping
 
@@ -30,6 +31,7 @@ def failed(
     origin: MetricOrigin = MetricOrigin.SIMULATED,
     latency_ms: float | None = None,
     usage: TokenUsage | None = None,
+    retry_after_seconds: float | None = None,
 ) -> ModelResponse:
     return ModelResponse(
         provider=request.provider,
@@ -39,7 +41,12 @@ def failed(
         metric_origin=origin,
         latency_ms=latency_ms,
         usage=usage,
-        error=ErrorInfo(category=category, code=code, retryable=retryable),
+        error=ErrorInfo(
+            category=category,
+            code=code,
+            retryable=retryable,
+            retry_after_seconds=retry_after_seconds,
+        ),
     )
 
 
@@ -101,6 +108,7 @@ class GroqResponseMapper:
             status: CallStatus = CallStatus.FAILED,
             retryable: bool = False,
             usage: TokenUsage | None = None,
+            retry_after_seconds: float | None = None,
         ) -> ModelResponse:
             return failed(
                 request,
@@ -111,15 +119,25 @@ class GroqResponseMapper:
                 origin=MetricOrigin.OBSERVED,
                 latency_ms=elapsed_ms,
                 usage=usage,
+                retry_after_seconds=retry_after_seconds,
             )
 
         status = result.status_code
         if status == 429:
+            raw_hint = result.retry_after_seconds
+            safe_hint = (
+                float(raw_hint)
+                if type(raw_hint) in (int, float)
+                and math.isfinite(raw_hint)
+                and 0 <= raw_hint <= 86_400
+                else None
+            )
             return http_failure(
                 "GROQ_RATE_LIMIT",
                 category=ErrorCategory.RATE_LIMIT,
                 status=CallStatus.RATE_LIMITED,
                 retryable=True,
+                retry_after_seconds=safe_hint,
             )
         if status in (408, 504):
             return http_failure(
