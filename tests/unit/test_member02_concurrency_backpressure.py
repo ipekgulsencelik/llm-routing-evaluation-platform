@@ -118,7 +118,12 @@ def test_many_requests_respect_provider_semaphore_without_exceeding_limit(
             assert transport.in_flight == 3
             transport.release.set()
             responses = await asyncio.wait_for(asyncio.gather(*tasks), timeout=3.0)
-            return [r.status for r in responses], transport.calls, transport.peak, transport.in_flight
+            return (
+                [r.status for r in responses],
+                transport.calls,
+                transport.peak,
+                transport.in_flight,
+            )
         finally:
             transport.release.set()
             for task in tasks:
