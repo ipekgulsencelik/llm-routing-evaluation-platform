@@ -120,7 +120,9 @@ def _mean(values: Sequence[float]) -> float | None:
     return statistics.mean(values) if values else None
 
 
-def _token_values(attempts: list[TraceStep], field: Literal["input_tokens", "output_tokens"]) -> tuple[int | None, float | None]:
+def _token_values(
+    attempts: list[TraceStep], field: Literal["input_tokens", "output_tokens"]
+) -> tuple[int | None, float | None]:
     """Incomplete usage means no misleading grand total or per-attempt average."""
     if not attempts:
         return None, None
