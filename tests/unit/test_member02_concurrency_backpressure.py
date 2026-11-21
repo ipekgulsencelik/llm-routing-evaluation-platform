@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import json
 from collections.abc import Mapping
 
 import httpx
@@ -12,6 +11,7 @@ import pytest
 from llm_routing_eval.adapters.providers import (
     GroqChatProvider,
     GroqProviderOptions,
+    GroqTransport,
     HttpResult,
     managed_httpx_groq_provider,
 )
@@ -68,16 +68,14 @@ def _successful_http_result() -> HttpResult:
     )
 
 
-def _provider(transport: object, *, max_in_flight: int) -> GroqChatProvider:
-    from llm_routing_eval.adapters.providers import GroqTransport
-
+def _provider(transport: GroqTransport, *, max_in_flight: int) -> GroqChatProvider:
     return GroqChatProvider(
         GroqProviderOptions(
             allowed_models=frozenset({_MODEL}),
             live_enabled=True,
             max_in_flight=max_in_flight,
         ),
-        transport=transport,  # type: ignore[arg-type]
+        transport=transport,
         outbound_authorization=SyntheticApproval(),
     )
 
