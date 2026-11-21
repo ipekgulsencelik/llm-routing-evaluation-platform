@@ -38,18 +38,14 @@ def _dependencies(tree: ast.AST, *, package: str) -> tuple[str, ...]:
             modules.extend(alias.name for alias in node.names)
         elif isinstance(node, ast.ImportFrom):
             if node.level:
-                base = importlib.util.resolve_name(
-                    "." * node.level + (node.module or ""), package
-                )
+                base = importlib.util.resolve_name("." * node.level + (node.module or ""), package)
             else:
                 base = node.module or ""
             if base:
                 modules.append(base)
                 # "from llm_routing_eval import adapters" must be checked
                 # as well as "import llm_routing_eval.adapters".
-                modules.extend(
-                    base + "." + alias.name for alias in node.names if alias.name != "*"
-                )
+                modules.extend(base + "." + alias.name for alias in node.names if alias.name != "*")
     return tuple(modules)
 
 
@@ -60,15 +56,11 @@ def _known_dynamic_imports(tree: ast.AST) -> bool:
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             module_names.update(
-                alias.asname or "importlib"
-                for alias in node.names
-                if alias.name == "importlib"
+                alias.asname or "importlib" for alias in node.names if alias.name == "importlib"
             )
         elif isinstance(node, ast.ImportFrom) and node.module == "importlib":
             function_names.update(
-                alias.asname or alias.name
-                for alias in node.names
-                if alias.name == "import_module"
+                alias.asname or alias.name for alias in node.names if alias.name == "import_module"
             )
     for node in ast.walk(tree):
         if not isinstance(node, ast.Call):
