@@ -17,6 +17,7 @@ from llm_routing_eval.application import (
     BenchmarkOrchestrator,
     BenchmarkPersistenceError,
 )
+from llm_routing_eval.cli.comparison_export import write_comparison
 from llm_routing_eval.cli.configuration import demo_options, read_settings
 from llm_routing_eval.core import BenchmarkCase
 from llm_routing_eval.demo.fakes import (
@@ -233,6 +234,80 @@ def run_routing(
             else "ROUTER_CONFIG_INVALID"
         )
         typer.echo(f"RUN_FAILED: {reason}", err=True)
+        raise typer.Exit(code=2) from None
+
+
+@app.command("compare-routing")
+def compare_routing(
+    config: Annotated[Path, typer.Option(help="Offline benchmark YAML")] = DEFAULT_CONFIG,
+    router_config: Annotated[Path, typer.Option(help="Member 02 routing policy YAML")] = Path(
+        "config/routing.yaml"
+    ),
+    dataset: Annotated[Path, typer.Option(help="Only allowlisted synthetic cases")] = (
+        DEFAULT_DATASET
+    ),
+    output: Annotated[Path, typer.Option(help="Atomic summary JSON destination")] = Path(
+        "artifacts/offline_comparison.json"
+    ),
+) -> None:
+    """Run all four strategies on identical synthetic cases; never call live APIs."""
+    from llm_routing_eval.application import RunOptions, StrategyComparisonRunner
+    from llm_routing_eval.core import StrategyId
+
+    try:
+        settings = read_settings(config)
+        if settings.execution.mode != "offline" or settings.execution.live_enabled:
+            raise BenchmarkInputError("LIVE_MODE_NOT_IMPLEMENTED")
+        routing = read_routing_settings(router_config)
+        if any(example.input_text not in DEMO_PROMPTS for example in routing.knn.examples):
+            raise BenchmarkInputError("ROUTING_DEMO_EXAMPLES_NOT_ALLOWLISTED")
+        version, cases = _load_demo_cases(dataset)
+        if not cases or any(case.input_text not in DEMO_PROMPTS for case in cases):
+            raise BenchmarkInputError("COMPARISON_REQUIRES_ALLOWLISTED_CASES")
+
+        async def build(strategy: StrategyId) -> BenchmarkOrchestrator:
+            return BenchmarkOrchestrator(
+                router=await build_router(strategy, routing),
+                provider=DemoFakeProvider(),
+                evaluator=DemoFixtureEvaluator(),
+                privacy=AllowlistedDemoPrivacy(),
+                repository=InMemoryDemoRepository(),
+            )
+
+        options = RunOptions(
+            provider="fake",
+            allowed_models=(routing.models.small, routing.models.large),
+            dataset_version=version,
+            routing_policy_sha256=routing.fingerprint(),
+            max_model_calls_per_case=settings.execution.max_model_calls_per_case,
+            max_retries=settings.execution.max_retries,
+        )
+        summary = asyncio.run(
+            StrategyComparisonRunner(orchestrator_factory=build).compare(cases, options)
+        )
+        write_comparison(output, summary)
+        typer.echo("MODE: OFFLINE_SIMULATION (NOT financial quality or provider latency)")
+        typer.echo("STRATEGY        SUCCESS   ATTEMPTS   ATT/CAS   TOKENS/CALL (SIMULATED)")
+        for row in summary.strategies:
+            total = (
+                f"{row.input_tokens_per_attempt:.1f}+{row.output_tokens_per_attempt:.1f}"
+                if row.input_tokens_per_attempt is not None
+                and row.output_tokens_per_attempt is not None
+                else "UNKNOWN"
+            )
+            typer.echo(
+                f"{row.strategy.value:<16}{row.successful_cases:>3}/{row.case_count:<5}"
+                f"{row.provider_attempts:>8}{row.attempts_per_case:>10.2f}   {total}"
+            )
+        typer.echo("COST: UNKNOWN; LATENCY: LOCAL APPLICATION ONLY")
+        typer.echo(f"REPORT: {output}")
+    except (BenchmarkInputError, BenchmarkPersistenceError, ValueError, ValidationError) as exc:
+        reason = (
+            str(exc)
+            if isinstance(exc, (BenchmarkInputError, BenchmarkPersistenceError))
+            else "COMPARISON_CONFIG_INVALID"
+        )
+        typer.echo(f"COMPARISON_FAILED: {reason}", err=True)
         raise typer.Exit(code=2) from None
 
 
