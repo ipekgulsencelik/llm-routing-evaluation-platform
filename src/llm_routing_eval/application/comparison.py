@@ -126,10 +126,7 @@ def _token_values(
     """Incomplete usage means no misleading grand total or per-attempt average."""
     if not attempts:
         return None, None
-    samples = [
-        getattr(step.usage, field) if step.usage is not None else None
-        for step in attempts
-    ]
+    samples = [getattr(step.usage, field) if step.usage is not None else None for step in attempts]
     if any(value is None for value in samples):
         return None, None
     numeric = [value for value in samples if value is not None]
@@ -164,9 +161,7 @@ def _row(result: RunResult, strategy: StrategyId, expected_cases: tuple[str, ...
     local_case_samples = [
         trace.total_latency_ms for trace in traces if trace.total_latency_ms is not None
     ]
-    local_attempt_samples = [
-        step.elapsed_ms for step in attempts if step.elapsed_ms is not None
-    ]
+    local_attempt_samples = [step.elapsed_ms for step in attempts if step.elapsed_ms is not None]
     input_total, input_average = _token_values(attempts, "input_tokens")
     output_total, output_average = _token_values(attempts, "output_tokens")
     usage_coverage = sum(step.usage is not None for step in attempts)
