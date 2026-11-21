@@ -331,8 +331,7 @@ def groq_preflight(
         raise typer.Exit(code=2) from None
     typer.echo(f"GROQ_PREFLIGHT_STATUS: {result.status}")
     typer.echo(
-        "MODEL_CONFIGURATION: "
-        + ("MATCH" if result.provider_model_alignment else "MISMATCH")
+        "MODEL_CONFIGURATION: " + ("MATCH" if result.provider_model_alignment else "MISMATCH")
     )
     for reason in result.blockers:
         typer.echo(f"BLOCKER: {reason}")
