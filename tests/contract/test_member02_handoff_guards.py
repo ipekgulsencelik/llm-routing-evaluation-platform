@@ -1,71 +1,175 @@
-"""Member 02 delivery gates: architecture direction and offline fail-closed baseline.
+"""Member 02 import-direction and offline-release regression guards.
 
-These are static/manifest checks, not an approval of live Groq, financial quality,
-privacy controls, costs, or an enterprise security certification.
+Static checks limit accidental dependency inversions; they are not a sandbox,
+proof of absence of dynamic execution, or production security authorization.
 """
 
 from __future__ import annotations
 
 import ast
+import importlib.util
 from pathlib import Path
+from typing import Literal
 
+import pytest
 import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
 PACKAGE = ROOT / "src" / "llm_routing_eval"
-_FORBIDDEN_SHARED = (
-    "llm_routing_eval.application",
-    "llm_routing_eval.cli",
-    "llm_routing_eval.demo",
-    "llm_routing_eval.domains",
-    "llm_routing_eval.evaluation",
-    "llm_routing_eval.privacy",
-    "llm_routing_eval.reporting",
+_LOCAL_ROOT = "llm_routing_eval"
+_ROUTER_NAMESPACE = "llm_routing_eval.routing"
+_PROVIDER_NAMESPACE = "llm_routing_eval.adapters.providers"
+_CORE_NAMESPACE = "llm_routing_eval.core"
+_ROUTER_NETWORK_MODULES = frozenset(
+    {"httpx", "requests", "urllib", "urllib3", "aiohttp", "socket", "http", "groq", "openai"}
 )
 
 
-def _absolute_imports(path: Path) -> tuple[str, ...]:
-    """Audit imports without importing production modules or running any IO."""
-    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+def _member_module(path: Path) -> str:
+    relative = path.relative_to(PACKAGE)
+    return ".".join((_LOCAL_ROOT, *relative.with_suffix("").parts))
+
+
+def _dependencies(tree: ast.AST, *, package: str) -> tuple[str, ...]:
+    """Resolve direct imports, namespace imports, and relative imports correctly."""
     modules: list[str] = []
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             modules.extend(alias.name for alias in node.names)
         elif isinstance(node, ast.ImportFrom):
-            assert node.level <= 1, f"Cross-package relative import in {path}"
-            if node.level == 0 and node.module is not None:
-                modules.append(node.module)
+            if node.level:
+                base = importlib.util.resolve_name(
+                    "." * node.level + (node.module or ""), package
+                )
+            else:
+                base = node.module or ""
+            if base:
+                modules.append(base)
+                # "from llm_routing_eval import adapters" must be checked
+                # as well as "import llm_routing_eval.adapters".
+                modules.extend(
+                    base + "." + alias.name for alias in node.names if alias.name != "*"
+                )
     return tuple(modules)
 
 
-def test_router_layer_never_imports_application_provider_or_evaluation_code() -> None:
-    """Core-facing strategies must remain substitutable, not a hidden gateway."""
-    forbidden = (
-        *_FORBIDDEN_SHARED,
-        "llm_routing_eval.adapters",
-        "httpx",
-        "requests",
-        "urllib",
-        "socket",
+def _known_dynamic_imports(tree: ast.AST) -> bool:
+    """Reject direct importlib / __import__ entrypoints, including common aliases."""
+    module_names = {"importlib"}
+    function_names = {"__import__"}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            module_names.update(
+                alias.asname or "importlib"
+                for alias in node.names
+                if alias.name == "importlib"
+            )
+        elif isinstance(node, ast.ImportFrom) and node.module == "importlib":
+            function_names.update(
+                alias.asname or alias.name
+                for alias in node.names
+                if alias.name == "import_module"
+            )
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        func = node.func
+        if isinstance(func, ast.Name) and func.id in function_names:
+            return True
+        if (
+            isinstance(func, ast.Attribute)
+            and func.attr == "import_module"
+            and isinstance(func.value, ast.Name)
+            and func.value.id in module_names
+        ):
+            return True
+    return False
+
+
+def _is_namespace(name: str, namespace: str) -> bool:
+    return name == namespace or name.startswith(namespace + ".")
+
+
+def _check_source(source: str, *, package: str, layer: Literal["router", "provider"]) -> None:
+    syntax = ast.parse(source)
+    assert not _known_dynamic_imports(syntax), f"{layer}: DYNAMIC_IMPORT_REQUIRES_REVIEW"
+    allowed = (
+        (_CORE_NAMESPACE, _ROUTER_NAMESPACE)
+        if layer == "router"
+        else (_CORE_NAMESPACE, _PROVIDER_NAMESPACE)
     )
-    for path in sorted((PACKAGE / "routing").glob("*.py")):
-        for module in _absolute_imports(path):
-            assert not any(
-                module == prefix or module.startswith(prefix + ".") for prefix in forbidden
-            ), f"Member02 router dependency violation in {path.name}: {module}"
+    for module in _dependencies(syntax, package=package):
+        if module == _LOCAL_ROOT or module.startswith(_LOCAL_ROOT + "."):
+            assert any(_is_namespace(module, prefix) for prefix in allowed), (
+                f"{layer}: FORBIDDEN_PROJECT_IMPORT: {module}"
+            )
+        if layer == "router":
+            assert module.split(".", maxsplit=1)[0] not in _ROUTER_NETWORK_MODULES, (
+                f"{layer}: NETWORK_IMPLEMENTATION_IMPORT: {module}"
+            )
 
 
-def test_provider_adapters_never_import_application_demo_or_member03_member04() -> None:
-    """Provider implementations depend inward on shared Core contracts only."""
-    for path in sorted((PACKAGE / "adapters" / "providers").glob("*.py")):
-        for module in _absolute_imports(path):
-            assert not any(
-                module == prefix or module.startswith(prefix + ".") for prefix in _FORBIDDEN_SHARED
-            ), f"Member02 provider dependency violation in {path.name}: {module}"
+def _check_package(path: Path, *, layer: Literal["router", "provider"]) -> None:
+    assert path.is_dir(), f"Missing Member 02 package {path}"
+    files = sorted(path.glob("*.py"))
+    assert files, f"No Member 02 modules found under {path}"
+    for module_path in files:
+        _check_source(
+            module_path.read_text(encoding="utf-8"),
+            package=_member_module(module_path).rsplit(".", maxsplit=1)[0],
+            layer=layer,
+        )
+
+
+def test_router_layer_depends_only_on_core_and_routing_implementations() -> None:
+    _check_package(PACKAGE / "routing", layer="router")
+
+
+def test_provider_layer_depends_only_on_core_and_provider_implementations() -> None:
+    _check_package(PACKAGE / "adapters" / "providers", layer="provider")
+
+
+@pytest.mark.parametrize(
+    ("layer", "package", "source"),
+    [
+        ("router", _ROUTER_NAMESPACE, "import llm_routing_eval.adapters.providers"),
+        ("router", _ROUTER_NAMESPACE, "from llm_routing_eval import adapters"),
+        ("router", _ROUTER_NAMESPACE, "from ..application import orchestrator"),
+        ("router", _ROUTER_NAMESPACE, "import httpx"),
+        ("router", _ROUTER_NAMESPACE, "from urllib.request import Request"),
+        ("provider", _PROVIDER_NAMESPACE, "from llm_routing_eval import routing"),
+        ("provider", _PROVIDER_NAMESPACE, "from .. import embeddings"),
+        ("provider", _PROVIDER_NAMESPACE, "from llm_routing_eval.privacy import adapter"),
+        ("provider", _PROVIDER_NAMESPACE, "import llm_routing_eval.application"),
+        ("provider", _PROVIDER_NAMESPACE, "import importlib as il\nil.import_module(name)"),
+        ("router", _ROUTER_NAMESPACE, "from importlib import import_module as loader\nloader(name)"),
+        ("provider", _PROVIDER_NAMESPACE, "__import__(name)"),
+    ],
+)
+def test_known_cross_layer_import_bypasses_are_rejected(
+    layer: Literal["router", "provider"], package: str, source: str
+) -> None:
+    with pytest.raises(AssertionError):
+        _check_source(source, package=package, layer=layer)
+
+
+@pytest.mark.parametrize(
+    ("layer", "package", "source"),
+    [
+        ("router", _ROUTER_NAMESPACE, "from .strategies import ModelPair"),
+        ("router", _ROUTER_NAMESPACE, "from llm_routing_eval.core import RouterPort"),
+        ("provider", _PROVIDER_NAMESPACE, "from .transport import GroqTransport"),
+        ("provider", _PROVIDER_NAMESPACE, "from llm_routing_eval import core"),
+    ],
+)
+def test_allowed_internal_imports_still_pass(
+    layer: Literal["router", "provider"], package: str, source: str
+) -> None:
+    _check_source(source, package=package, layer=layer)
 
 
 def test_current_release_configuration_is_explicitly_offline_and_unpriced() -> None:
-    """Update these release guards only after cross-member approval evidence."""
+    """Configuration check is defense-in-depth, not a complete runtime policy."""
     providers = yaml.safe_load((ROOT / "config" / "providers.yaml").read_text(encoding="utf-8"))
     execution = yaml.safe_load((ROOT / "config" / "settings.yaml").read_text(encoding="utf-8"))
     pricing = yaml.safe_load((ROOT / "config" / "pricing.yaml").read_text(encoding="utf-8"))
