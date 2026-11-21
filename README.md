@@ -1,6 +1,6 @@
 # LLM Routing Evaluation Platform - V1.1
 
-**Status:** Member 01 core, application and CLI offline demo implemented. Member 02 offline routing strategies are implemented behind the RouterPort; they are not yet configurable through the CLI. Live providers, production privacy, dataset evaluation and durable reporting remain pending.
+**Status:** Member 01 core, application and CLI offline demo implemented. Member 02 offline routing strategies are implemented behind RouterPort; an additional configured offline CLI is available on the Member 02 integration branch. Live providers, production privacy, dataset evaluation and durable reporting remain pending.
 
 An open-source, domain-independent framework to evaluate whether LLM routing strategies improve cost, answer quality and latency on controlled workloads. The first domain pack targets **Turkish Retail Banking & Customer Support**.
 
@@ -11,6 +11,22 @@ An open-source, domain-independent framework to evaluate whether LLM routing str
 - Pydantic v2 contracts, Typer CLI, async dependency injection through Ports
 - Strategies: Always-Large, Rule-Based, kNN and Cascade (offline RouterPort implementations; CLI integration pending)
 - Primary live provider: Groq (later, opt-in); NVIDIA Build (post-MVP)
+
+## Member 02 offline strategy evaluation (new)
+
+Configure model pair, rules, development kNN references and Cascade policy in `config/routing.yaml`. This is **offline simulation** (fake provider, synthetic cases, and fixture quality only):
+
+```bash
+uv run llm-routing-eval validate-routing-config --router-config config/routing.yaml
+uv run llm-routing-eval run-routing --strategy always_large
+uv run llm-routing-eval run-routing --strategy rule_based
+uv run llm-routing-eval run-routing --strategy knn
+uv run llm-routing-eval run-routing --strategy cascade
+```
+
+Member 02 also provides a Groq Chat Completions adapter behind the shared provider port. It is **not connected to the CLI**, requires an explicit per-instance and environment opt-in plus `GROQ_API_KEY`, and is covered by network-free tests. The production privacy, financial evaluation and cost-accounting gates remain unimplemented, so no live banking benchmark is offered.
+
+See [Member 02 implementation](docs/member02-implementation.md).
 
 ## Member 01 offline smoke test
 
