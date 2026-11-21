@@ -20,12 +20,14 @@ from llm_routing_eval.application import (
 from llm_routing_eval.cli.configuration import demo_options, read_settings
 from llm_routing_eval.core import BenchmarkCase
 from llm_routing_eval.demo.fakes import (
+    DEMO_PROMPTS,
     AllowlistedDemoPrivacy,
     DemoAlwaysLargeRouter,
     DemoFakeProvider,
     DemoFixtureEvaluator,
     InMemoryDemoRepository,
 )
+from llm_routing_eval.routing import build_router, read_routing_settings
 
 app = typer.Typer(help="LLM routing evaluation: safe offline integration demo.")
 DEFAULT_CONFIG = Path("config/settings.yaml")
@@ -138,6 +140,99 @@ def run(
             str(exc)
             if isinstance(exc, (BenchmarkInputError, BenchmarkPersistenceError))
             else "INVALID_OPTIONS"
+        )
+        typer.echo(f"RUN_FAILED: {reason}", err=True)
+        raise typer.Exit(code=2) from None
+
+
+
+@app.command("validate-routing-config")
+def validate_routing_config(
+    router_config: Annotated[Path, typer.Option(help="Member 02 YAML router policy")] = Path(
+        "config/routing.yaml"
+    ),
+) -> None:
+    """Validate versioned router settings without network access or API keys."""
+    try:
+        settings = read_routing_settings(router_config)
+        if any(example.input_text not in DEMO_PROMPTS for example in settings.knn.examples):
+            raise BenchmarkInputError("ROUTING_DEMO_EXAMPLES_NOT_ALLOWLISTED")
+        typer.echo("ROUTER_CONFIG_VALID: offline, development-only")
+    except (ValueError, BenchmarkInputError):
+        typer.echo("ROUTER_CONFIG_INVALID", err=True)
+        raise typer.Exit(code=2) from None
+
+
+@app.command("run-routing")
+def run_routing(
+    strategy: Annotated[str, typer.Option(help="always_large, rule_based, knn or cascade")] = (
+        "always_large"
+    ),
+    config: Annotated[Path, typer.Option(help="Offline benchmark YAML settings")] = DEFAULT_CONFIG,
+    router_config: Annotated[Path, typer.Option(help="Versioned router policy YAML")] = Path(
+        "config/routing.yaml"
+    ),
+    dataset: Annotated[Path, typer.Option(help="Allowlisted synthetic demo fixtures")] = (
+        DEFAULT_DATASET
+    ),
+    output: Annotated[Path, typer.Option(help="Safe JSONL output")] = Path(
+        "artifacts/offline_routing.jsonl"
+    ),
+) -> None:
+    """Run any real Member 02 strategy with the offline fake provider only."""
+    from llm_routing_eval.application import RunOptions
+    from llm_routing_eval.core import StrategyId
+
+    try:
+        settings = read_settings(config)
+        if settings.execution.mode != "offline" or settings.execution.live_enabled:
+            raise BenchmarkInputError("LIVE_MODE_NOT_IMPLEMENTED")
+        router_settings = read_routing_settings(router_config)
+        if any(
+            example.input_text not in DEMO_PROMPTS for example in router_settings.knn.examples
+        ):
+            raise BenchmarkInputError("ROUTING_DEMO_EXAMPLES_NOT_ALLOWLISTED")
+        try:
+            chosen = StrategyId(strategy)
+        except ValueError:
+            raise BenchmarkInputError("INVALID_ROUTING_STRATEGY") from None
+        dataset_version, cases = _load_demo_cases(dataset)
+        options = RunOptions(
+            strategy=chosen,
+            provider="fake",
+            allowed_models=(router_settings.models.small, router_settings.models.large),
+            dataset_version=dataset_version,
+            max_model_calls_per_case=settings.execution.max_model_calls_per_case,
+            max_retries=settings.execution.max_retries,
+        )
+        repository = InMemoryDemoRepository()
+
+        async def execute() -> None:
+            router = await build_router(chosen, router_settings)
+            orchestrator = BenchmarkOrchestrator(
+                router=router,
+                provider=DemoFakeProvider(),
+                evaluator=DemoFixtureEvaluator(),
+                privacy=AllowlistedDemoPrivacy(),
+                repository=repository,
+            )
+            await orchestrator.run(cases, options)
+
+        asyncio.run(execute())
+        _write_safe_jsonl(output, repository)
+        metric = repository.reports[-1].strategy_metrics[chosen]
+        typer.echo(f"ROUTER: {chosen.value}")
+        typer.echo(
+            f"CASES: {metric.case_count}, SUCCESS: {metric.successful_cases}, "
+            f"FAILED: {metric.failed_cases}, BLOCKED: {metric.blocked_cases}"
+        )
+        typer.echo("MODE: OFFLINE_SIMULATION; financial quality and API cost NOT measured")
+        typer.echo(f"REPORT: {output}")
+    except (BenchmarkInputError, BenchmarkPersistenceError, ValidationError, ValueError) as exc:
+        reason = (
+            str(exc)
+            if isinstance(exc, (BenchmarkInputError, BenchmarkPersistenceError))
+            else "ROUTER_CONFIG_INVALID"
         )
         typer.echo(f"RUN_FAILED: {reason}", err=True)
         raise typer.Exit(code=2) from None
