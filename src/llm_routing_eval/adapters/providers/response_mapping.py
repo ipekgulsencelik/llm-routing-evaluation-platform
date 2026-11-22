@@ -98,7 +98,16 @@ def _choice(payload: Mapping[str, object]) -> tuple[str | None, str | None]:
 
 
 class GroqResponseMapper:
-    """A single responsibility: validate and normalize one completed HTTP result."""
+    """A single responsibility: validate and normalize one completed HTTP result.
+
+    Groq and NVIDIA Build both expose the OpenAI-compatible Chat Completions
+    wire format; only the safe error-code prefix differs between providers.
+    """
+
+    def __init__(self, *, code_prefix: str = "GROQ") -> None:
+        if re.fullmatch(r"[A-Z][A-Z0-9]{0,15}", code_prefix) is None:
+            raise ValueError("ERROR_CODE_PREFIX_INVALID")
+        self._prefix = code_prefix
 
     def map(self, request: ModelRequest, result: HttpResult, *, elapsed_ms: float) -> ModelResponse:
         def http_failure(
@@ -131,7 +140,7 @@ class GroqResponseMapper:
                 else None
             )
             return http_failure(
-                "GROQ_RATE_LIMIT",
+                self._prefix + "_RATE_LIMIT",
                 category=ErrorCategory.RATE_LIMIT,
                 status=CallStatus.RATE_LIMITED,
                 retryable=True,
@@ -139,7 +148,7 @@ class GroqResponseMapper:
             )
         if status in (408, 504):
             return http_failure(
-                "GROQ_TIMEOUT",
+                self._prefix + "_TIMEOUT",
                 category=ErrorCategory.PROVIDER_TIMEOUT,
                 status=CallStatus.TIMEOUT,
                 retryable=True,
@@ -147,25 +156,25 @@ class GroqResponseMapper:
         if status == 409:
             # Groq SDKs classify HTTP 409 as transient; attempts remain
             # bounded by the application's existing global call budget.
-            return http_failure("GROQ_CONFLICT", retryable=True)
+            return http_failure(self._prefix + "_CONFLICT", retryable=True)
         if status >= 500:
-            return http_failure("GROQ_SERVER_ERROR", retryable=True)
+            return http_failure(self._prefix + "_SERVER_ERROR", retryable=True)
         if status != 200:
-            return http_failure("GROQ_HTTP_ERROR")
+            return http_failure(self._prefix + "_HTTP_ERROR")
         payload = result.body
         if payload is None:
-            return http_failure("GROQ_INVALID_RESPONSE")
+            return http_failure(self._prefix + "_INVALID_RESPONSE")
         model = payload.get("model")
         if model is not None and model != request.model:
-            return http_failure("GROQ_MODEL_MISMATCH")
+            return http_failure(self._prefix + "_MODEL_MISMATCH")
         answer, finish_reason = _choice(payload)
         usage = _usage(payload)
         if finish_reason == "length":
-            return http_failure("GROQ_TRUNCATED", usage=usage)
+            return http_failure(self._prefix + "_TRUNCATED", usage=usage)
         if finish_reason not in (None, "stop"):
-            return http_failure("GROQ_UNSUPPORTED_FINISH", usage=usage)
+            return http_failure(self._prefix + "_UNSUPPORTED_FINISH", usage=usage)
         if answer is None:
-            return http_failure("GROQ_INVALID_RESPONSE", usage=usage)
+            return http_failure(self._prefix + "_INVALID_RESPONSE", usage=usage)
         provider_id = payload.get("id")
         safe_id = (
             provider_id
