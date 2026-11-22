@@ -58,10 +58,10 @@ Architecture conclusion: the repository follows pragmatic SOLID/Ports & Adapters
 | **Release blocker** | No reviewed concrete `PrivacyPort`, per-request outbound authorizer, consent/retention or safe durable `ResultRepositoryPort` | **Member 04** | Approved privacy and data-governance policy; actual adapter code; deny-by-default, secret/PII and storage round-trip tests |
 | **Release blocker** | Model-account availability, billed Groq response/usage and actual pricing provenance are unverified | **Member 02** + Member 04 | Separately authorized synthetic-only pilot, model IDs confirmed, observed usage with rate/version evidence and documented cap |
 | **Release blocker** | Full, team-owned adapters not yet composed in a release-runner; cross-member tests currently rely on doubles | **Member 01** + Members 02–04 | Replace test doubles with reviewed adapters, then rerun golden/privacy/trace/telemetry/failure tests on same held-out workload |
-| **Pre-release** | Domain/calibration not production-calibrated; hashed lexical kNN is not validated semantic retrieval; Cascade only uses scenario/failure policy | **Member 02** + Member 03 | Calibrated development-only routing criteria, agreed comparisons and fairness/quality benchmarks |
+| **Pre-release** | *(Tooling delivered 2026-11-22, see addendum)* Domain/calibration not production-calibrated; hashed lexical kNN is not validated semantic retrieval; Cascade only uses scenario/failure policy | **Member 02** + Member 03 | Calibrated development-only routing criteria, agreed comparisons and fairness/quality benchmarks |
 | **Pre-release** | No remote/TLS infrastructure stress test, distributed rate limiting, durable multiworker telemetry or independent threat-model/SBOM review | **Member 02** + Member 04 | Approved staging/network reliability, vulnerability review, retention/security and actual operational error budget |
 | **Shared infrastructure** | Docker/Compose build and runtime path is a scaffold, not a verified CI gate | **Member 04** | Reproducible Docker build + offline smoke, runtime secrets handling and isolation check |
-| **Post-MVP M5** | NVIDIA Build provider compatibility | **Member 02** (Member 01/04 review) | Separate adapter, contract/offline validation and optional approved pilot; **not a blocker for first MVP** |
+| **Post-MVP M5** | *(Adapter delivered offline 2026-11-22, see addendum)* NVIDIA Build provider compatibility | **Member 02** (Member 01/04 review) | Separate adapter, contract/offline validation and optional approved pilot; **not a blocker for first MVP** |
 
 **Do not substitute** `SyntheticOnlyOutboundApproval`, `ContractPrivacyDouble`, `EvaluatorContractDouble`, `AllowlistedDemoPrivacy`, or `InMemoryDemoRepository` for reviewed production services. All named test doubles provide contract evidence only.
 
@@ -100,3 +100,7 @@ All demonstration commands above use synthetic/allowlisted offline data. The `gr
 - [ ] **Team/MVP release:** all required real adapters integrated, reproducible benchmark quality/cost/latency evidence reviewed, rollback/operational readiness approved
 
 **Final handoff state:** Member 02's **offline implementation and integration contract package are ready for team review**. **The full MVP and any live Groq/banking deployment are not ready.** Reassess this document when concrete Member 03/04 adapters arrive; the historical audit SHA and CI links must remain unchanged to preserve evidence lineage.
+
+## 7. Addendum (2026-11-22): remaining Member 02 deliverables
+
+The audit evidence above (SHA, CI links, test counts) is intentionally left unchanged. Afterwards, Member 02 delivered the open items it owns: the NVIDIA Build adapter, a semantic `EmbeddingPort` adapter, development-only kNN/Cascade calibration with the `calibrate-routing` CLI, and opt-in gated live tests. See [member02-remaining-deliverables.md](member02-remaining-deliverables.md). Local verification on that branch: **333 passed, 3 live tests skipped, 96% repository-wide coverage**, Ruff and strict mypy clean. Live use remains deny-by-default; the blockers owned by Member 03 and Member 04 above are unchanged.

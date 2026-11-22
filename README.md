@@ -68,6 +68,17 @@ The [concurrency/backpressure and local-TCP chaos gates](docs/member02-chaos-bac
 ## Member 02 privacy-safe provider observability (opt-in)
 
 An optional [bounded provider metrics adapter](docs/member02-provider-observability.md) now provides fixed-cardinality status/error-category counters, measured-transport latency samples, minimum-coverage p50/p95, and diagnostic-only provider-attempt error-budget checks. It stores **no prompts, outputs, credentials or request identifiers**, and is never automatically attached to a network exporter. Pre-transport privacy denials, missing data and cancellations remain separate from observed provider-attempt denominators. `managed_httpx_groq_provider(metrics_sink=...)` permits explicit injection; the default Groq authorization and live CLI remain blocked.
+## Member 02 NVIDIA Build, semantic embeddings and calibration (offline)
+
+Member 02 has added the remaining items it owns:
+
+- an **NVIDIA Build** chat adapter behind the same fail-closed gates as Groq;
+- a **semantic `EmbeddingPort`** adapter for kNN (NVIDIA Build embeddings, deny-all by default);
+- **development-only kNN/Cascade calibration** (`llm-routing-eval calibrate-routing --examples <development.json>`);
+- opt-in **gated live tests** (`pytest -m live`, skipped by default and never run in CI).
+
+Model availability is unverified and no live call has been made. See [remaining deliverables](docs/member02-remaining-deliverables.md).
+
 ## Member 02 cross-member contract handoff (offline)
 
 An [offline cross-member interface acceptance suite](docs/member02-cross-member-integration.md) composes Member 01's orchestrator with all four real Member 02 routers, the Groq HTTPX adapter and provider metrics, plus **test-only Member 03 evaluator and Member 04 privacy/repository adapters**. It verifies two privacy gates, golden reference isolation, fail-closed outbound authorization, redacted persistence, evaluator failure and trace/telemetry reconciliation. **The actual Member 03/04 modules are still scaffolds** and live Groq integration is not complete; this suite provides explicit integration acceptance tests for their future real adapters.
@@ -91,7 +102,7 @@ The generated JSONL contains a redacted execution trace, fixture-only evaluation
 
 ### Current verification constraints
 
-Audited `main` commit `90d18e54`: Python 3.12, `uv lock --check`, `uv sync --locked`, Ruff lint/format, strict mypy and **244 tests passed at 95% repository-wide statement coverage**. The handoff branch passes **247 tests** with additional architecture/offline guard checks (95% global coverage). CI also validates offline CLI smoke and intentionally blocked Groq preflight. **No external Groq call or Member 04 Docker deployment test has been performed.** See [the handoff evidence and limitations](docs/member02-final-technical-handoff.md).
+Audited `main` commit `90d18e54`: Python 3.12, `uv lock --check`, `uv sync --locked`, Ruff lint/format, strict mypy and **244 tests passed at 95% repository-wide statement coverage**. The handoff branch passes **247 tests** with additional architecture/offline guard checks (95% global coverage). CI also validates offline CLI smoke and intentionally blocked Groq preflight. After the remaining Member 02 deliverables were added, the suite has **333 passing tests (3 opt-in live tests skipped) at 96% coverage**. **No external Groq call or Member 04 Docker deployment test has been performed.** See [the handoff evidence and limitations](docs/member02-final-technical-handoff.md).
 
 ```bash
 uv lock --check
@@ -110,6 +121,7 @@ uv run pytest -q --cov=llm_routing_eval
 - [Member 02 enterprise hardening and release gates](docs/member02-enterprise-hardening.md)
 - [Member 02 final technical audit and cross-team handoff](docs/member02-final-technical-handoff.md)
 - [Member 02 Groq preflight and integration handoff](docs/member02-groq-preflight.md)
+- [Member 02 remaining deliverables: NVIDIA Build, embeddings, calibration, live tests](docs/member02-remaining-deliverables.md)
 - [Core contract specification](docs/contracts.md)
 - [Development roadmap](docs/development-roadmap.md)
 - [Contributor guidance](docs/contributing.md)

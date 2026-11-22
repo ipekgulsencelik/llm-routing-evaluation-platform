@@ -43,6 +43,8 @@ Implement four **interchangeable, explainable routing strategies** and reliable 
 
 ## Acceptance Criteria
 
+> **Status note (2026-11-22):** These unchecked boxes are the original plan and are deliberately left unchanged; they are not the current status. Every item that Member 02 can close alone is now implemented and offline-tested. That includes the NVIDIA Build path, the gated live Groq tests (written but not yet executed) and development-only calibration. See the [final handoff](member02-final-technical-handoff.md) and the [remaining deliverables](member02-remaining-deliverables.md). Reviewer sign-off is still pending.
+
 - [ ] All four strategies implement the same approved router interface and can be swapped by configuration without changes to the orchestrator.
 - [ ] Deterministic offline fixtures demonstrate correct Rule-Based behavior, kNN neighbor/tie handling, and Cascade escalation and non-escalation paths.
 - [ ] The held-out golden test set is excluded from kNN references, rule tuning, and cascade threshold calibration.
