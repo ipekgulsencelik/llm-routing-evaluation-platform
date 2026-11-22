@@ -179,6 +179,31 @@ def _cosine(left: tuple[float, ...], right: tuple[float, ...]) -> float:
     return numerator / (norm_l * norm_r)
 
 
+def knn_vote(
+    query: tuple[float, ...],
+    references: Sequence[tuple[tuple[float, ...], str, ModelTier]],
+    *,
+    k: int,
+    minimum_similarity: float,
+) -> tuple[ModelTier, str]:
+    """Pure kNN decision shared by the router and development-only calibration.
+
+    Stable tie-break by example ID; ties in the weighted vote and low-similarity
+    neighbourhoods conservatively select the large model.
+    """
+    candidates = sorted(
+        ((_cosine(query, vector), example_id, tier) for vector, example_id, tier in references),
+        key=lambda item: (-item[0], item[1]),
+    )[:k]
+    if not candidates or candidates[0][0] < minimum_similarity:
+        return "large", "KNN_LOW_SIMILARITY"
+    small_vote = sum(max(0.0, score) for score, _, t in candidates if t == "small")
+    large_vote = sum(max(0.0, score) for score, _, t in candidates if t == "large")
+    if small_vote > large_vote:
+        return "small", "KNN_SMALL"
+    return "large", "KNN_LARGE"
+
+
 class KnnRouter:
     """Prepared kNN classifier; stable tie breaks and conservative large fallback."""
 
@@ -248,21 +273,15 @@ class KnnRouter:
             raise ValueError("Embedding adapter returned incorrect query count")
         vector = query_vectors[0]
         _check_vector(vector, len(self._vectors[0]))
-        candidates = sorted(
-            (
-                (_cosine(vector, reference), ex.example_id, ex.tier)
+        tier, reason = knn_vote(
+            vector,
+            tuple(
+                (reference, ex.example_id, ex.tier)
                 for reference, ex in zip(self._vectors, self._examples, strict=True)
             ),
-            key=lambda item: (-item[0], item[1]),
-        )[: self._k]
-        if candidates[0][0] < self._minimum_similarity:
-            tier: ModelTier = "large"
-            reason = "KNN_LOW_SIMILARITY"
-        else:
-            small_vote = sum(max(0.0, score) for score, _, t in candidates if t == "small")
-            large_vote = sum(max(0.0, score) for score, _, t in candidates if t == "large")
-            tier = "small" if small_vote > large_vote else "large"
-            reason = "KNN_SMALL" if tier == "small" else "KNN_LARGE"
+            k=self._k,
+            minimum_similarity=self._minimum_similarity,
+        )
         return _decision(
             StrategyId.KNN,
             context,
