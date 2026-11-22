@@ -19,6 +19,7 @@ PACKAGE = ROOT / "src" / "llm_routing_eval"
 _LOCAL_ROOT = "llm_routing_eval"
 _ROUTER_NAMESPACE = "llm_routing_eval.routing"
 _PROVIDER_NAMESPACE = "llm_routing_eval.adapters.providers"
+_EMBEDDING_NAMESPACE = "llm_routing_eval.adapters.embeddings"
 _CORE_NAMESPACE = "llm_routing_eval.core"
 _ROUTER_NETWORK_MODULES = frozenset(
     {"httpx", "requests", "urllib", "urllib3", "aiohttp", "socket", "http", "groq", "openai"}
@@ -84,14 +85,17 @@ def _is_namespace(name: str, namespace: str) -> bool:
     return name == namespace or name.startswith(namespace + ".")
 
 
-def _check_source(source: str, *, package: str, layer: Literal["router", "provider"]) -> None:
+Layer = Literal["router", "provider", "embedding"]
+
+
+def _check_source(source: str, *, package: str, layer: Layer) -> None:
     syntax = ast.parse(source)
     assert not _known_dynamic_imports(syntax), f"{layer}: DYNAMIC_IMPORT_REQUIRES_REVIEW"
-    allowed = (
-        (_CORE_NAMESPACE, _ROUTER_NAMESPACE)
-        if layer == "router"
-        else (_CORE_NAMESPACE, _PROVIDER_NAMESPACE)
-    )
+    allowed = {
+        "router": (_CORE_NAMESPACE, _ROUTER_NAMESPACE),
+        "provider": (_CORE_NAMESPACE, _PROVIDER_NAMESPACE),
+        "embedding": (_CORE_NAMESPACE, _EMBEDDING_NAMESPACE),
+    }[layer]
     for module in _dependencies(syntax, package=package):
         if module == _LOCAL_ROOT or module.startswith(_LOCAL_ROOT + "."):
             assert any(_is_namespace(module, prefix) for prefix in allowed), (
@@ -103,7 +107,7 @@ def _check_source(source: str, *, package: str, layer: Literal["router", "provid
             )
 
 
-def _check_package(path: Path, *, layer: Literal["router", "provider"]) -> None:
+def _check_package(path: Path, *, layer: Layer) -> None:
     assert path.is_dir(), f"Missing Member 02 package {path}"
     files = sorted(path.glob("*.py"))
     assert files, f"No Member 02 modules found under {path}"
@@ -121,6 +125,16 @@ def test_router_layer_depends_only_on_core_and_routing_implementations() -> None
 
 def test_provider_layer_depends_only_on_core_and_provider_implementations() -> None:
     _check_package(PACKAGE / "adapters" / "providers", layer="provider")
+
+
+def test_embedding_layer_depends_only_on_core_and_embedding_implementations() -> None:
+    _check_package(PACKAGE / "adapters" / "embeddings", layer="embedding")
+
+
+def test_embedding_layer_rejects_router_and_provider_imports() -> None:
+    for source in ("from llm_routing_eval import routing", "from ..providers import groq"):
+        with pytest.raises(AssertionError):
+            _check_source(source, package=_EMBEDDING_NAMESPACE, layer="embedding")
 
 
 @pytest.mark.parametrize(
