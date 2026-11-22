@@ -250,3 +250,124 @@ def test_cli_invalid_input_exits_2(tmp_path: Path) -> None:
     )
     assert bad_ceiling.exit_code == 2
     assert not config.exists()
+
+
+def test_grid_matches_naive_per_point_knn_vote() -> None:
+    """Reusing rankings across grid points must not change any grid result."""
+    import random
+
+    from llm_routing_eval.routing import knn_vote
+
+    rng = random.Random(7)
+    examples = tuple(ex(i, f"t{i}", "small" if rng.random() < 0.5 else "large") for i in range(25))
+    table = {f"t{i}": tuple(rng.uniform(-1, 1) for _ in range(6)) for i in range(len(examples))}
+    result = asyncio.run(
+        calibrate_knn(
+            examples,
+            TableEmbedding(table),
+            k_values=(1, 3, 5),
+            thresholds=(-0.2, 0.0, 0.3, 0.6),
+            max_under_routing_rate=1.0,
+        )
+    )
+    refs = [(table[e.input_text], e.example_id, e.tier) for e in examples]
+    for point in result.grid:
+        correct = under = 0
+        for index, example in enumerate(examples):
+            predicted, _ = knn_vote(
+                refs[index][0],
+                refs[:index] + refs[index + 1 :],
+                k=point.k,
+                minimum_similarity=point.minimum_similarity,
+            )
+            correct += predicted == example.tier
+            under += predicted == "small" and example.tier == "large"
+        assert (point.correct, point.under_routed) == (correct, under)
+
+
+def test_neighbour_ranking_is_computed_once_per_example(monkeypatch: pytest.MonkeyPatch) -> None:
+    import llm_routing_eval.routing.calibration as calibration
+
+    calls = 0
+    original = calibration.rank_neighbours
+
+    def counting(*args: object, **kwargs: object):  # type: ignore[no-untyped-def]
+        nonlocal calls
+        calls += 1
+        return original(*args, **kwargs)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(calibration, "rank_neighbours", counting)
+    dataset = read_calibration_dataset(SYNTHETIC)
+    result = asyncio.run(calibrate_knn(dataset.examples, HashingEmbedding()))
+    assert len(result.grid) > 1
+    assert calls == len(dataset.examples)
+
+
+def test_dataset_size_is_bounded() -> None:
+    with pytest.raises(ValidationError):
+        CalibrationDataset(
+            schema_version="1.0.0",
+            dataset_version="t",
+            split="development",
+            examples=tuple(ex(i, f"t{i}", "small") for i in range(2_001)),
+        )
+
+
+def test_oversized_calibrated_policy_is_never_written(tmp_path: Path) -> None:
+    from llm_routing_eval.routing.calibration import CalibratedPolicyTooLargeError
+
+    long_text = "sentetik " * 9_000  # ~81 KB per example; two exceed the 128 KiB reader limit
+    data = {
+        "schema_version": "1.0.0",
+        "dataset_version": "synthetic-large",
+        "split": "development",
+        "examples": [
+            {
+                "example_id": "a",
+                "input_text": long_text + "hesap",
+                "scenario_type": "s",
+                "tier": "small",
+            },
+            {
+                "example_id": "b",
+                "input_text": long_text + "kredi",
+                "scenario_type": "s",
+                "tier": "large",
+            },
+            {"example_id": "c", "input_text": "kısa", "scenario_type": "s", "tier": "large"},
+        ],
+    }
+    examples = tmp_path / "large.json"
+    examples.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+    dataset = read_calibration_dataset(examples)
+    knn = asyncio.run(
+        calibrate_knn(dataset.examples, HashingEmbedding(), max_under_routing_rate=1.0)
+    )
+    calibrated = apply_calibration(
+        read_routing_settings(BASE), dataset, knn, calibrate_cascade(dataset.examples)
+    )
+    with pytest.raises(CalibratedPolicyTooLargeError, match="CALIBRATED_POLICY_TOO_LARGE"):
+        dump_routing_settings(calibrated)
+
+    config = tmp_path / "routing.yaml"
+    report = tmp_path / "report.json"
+    result = CliRunner().invoke(
+        app,
+        [
+            "calibrate-routing",
+            "--examples",
+            str(examples),
+            "--router-config",
+            str(BASE),
+            "--output-config",
+            str(config),
+            "--report",
+            str(report),
+            "--max-under-routing-rate",
+            "1",
+        ],
+    )
+    assert result.exit_code == 2
+    assert "CALIBRATED_POLICY_TOO_LARGE" in result.output
+    assert not config.exists()
+    assert report.exists()  # text-free evidence is still available for review

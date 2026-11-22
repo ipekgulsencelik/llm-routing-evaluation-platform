@@ -21,6 +21,8 @@ from .strategies import (
     RuleBasedRouter,
     ScenarioRule,
     knn_vote,
+    rank_neighbours,
+    vote_ranked,
 )
 
 __all__ = [
@@ -40,6 +42,8 @@ __all__ = [
     "calibrate_knn",
     "calibration_report",
     "knn_vote",
+    "rank_neighbours",
+    "vote_ranked",
     "read_calibration_dataset",
     "read_routing_settings",
     "ScenarioRule",

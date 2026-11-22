@@ -31,12 +31,13 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_valida
 from llm_routing_eval.core import EmbeddingPort
 
 from .configuration import (
+    MAX_ROUTING_CONFIG_BYTES,
     CascadeSettings,
     DevelopmentExampleSettings,
     KnnSettings,
     RoutingSettings,
 )
-from .strategies import ModelTier, _check_vector, knn_vote
+from .strategies import ModelTier, _check_vector, rank_neighbours, vote_ranked
 
 _SAFE_ID = r"^[A-Za-z0-9_./-]{1,100}$"
 DEFAULT_K_VALUES: tuple[int, ...] = (1, 3, 5, 7)
@@ -61,7 +62,9 @@ class CalibrationDataset(_Frozen):
     schema_version: Literal["1.0.0"]
     dataset_version: str = Field(min_length=1, max_length=100)
     split: Literal["development"]
-    examples: tuple[CalibrationExample, ...] = Field(min_length=2, max_length=10_000)
+    # Bounded so leave-one-out (O(n^2) similarities) stays practical; the emitted
+    # policy must also fit the routing-config reader limit.
+    examples: tuple[CalibrationExample, ...] = Field(min_length=2, max_length=2_000)
 
     @model_validator(mode="after")
     def unique_ids(self) -> CalibrationDataset:
@@ -162,13 +165,19 @@ async def calibrate_knn(
     references = tuple(
         (vector, ex.example_id, ex.tier) for vector, ex in zip(vectors, examples, strict=True)
     )
+    # Neighbour rankings depend on neither k nor the threshold: compute each
+    # example's leave-one-out ranking once (top max(k) only) and reuse it.
+    max_k = valid_k[-1]
+    rankings = tuple(
+        rank_neighbours(vectors[index], references[:index] + references[index + 1 :])[:max_k]
+        for index in range(len(examples))
+    )
     grid: list[KnnGridPoint] = []
     for k in valid_k:
         for threshold in valid_t:
             correct = under = over = small = 0
-            for index, example in enumerate(examples):
-                others = references[:index] + references[index + 1 :]
-                predicted, _ = knn_vote(vectors[index], others, k=k, minimum_similarity=threshold)
+            for ranked, example in zip(rankings, examples, strict=True):
+                predicted, _ = vote_ranked(ranked, k=k, minimum_similarity=threshold)
                 small += predicted == "small"
                 if predicted == example.tier:
                     correct += 1
@@ -317,6 +326,14 @@ def calibration_report(
 
 
 def dump_routing_settings(settings: RoutingSettings) -> str:
-    return yaml.safe_dump(
+    """Serialize a policy, refusing output that ``read_routing_settings`` would reject."""
+    text = yaml.safe_dump(
         settings.model_dump(mode="json"), sort_keys=False, allow_unicode=True, width=100
     )
+    if len(text.encode("utf-8")) > MAX_ROUTING_CONFIG_BYTES:
+        raise CalibratedPolicyTooLargeError("CALIBRATED_POLICY_TOO_LARGE")
+    return text
+
+
+class CalibratedPolicyTooLargeError(ValueError):
+    """The calibrated policy exceeds the routing-config reader size limit."""

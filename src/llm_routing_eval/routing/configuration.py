@@ -14,6 +14,8 @@ from .strategies import ModelTier
 
 _SAFE_ID = r"^[A-Za-z0-9_./-]{1,100}$"
 _SAFE_REASON = r"^[A-Z][A-Z0-9_]{0,39}$"
+# Shared by the reader and the calibration writer so emitted policies stay loadable.
+MAX_ROUTING_CONFIG_BYTES = 131_072
 
 
 class FrozenSettings(BaseModel):
@@ -111,7 +113,7 @@ class RoutingSettings(FrozenSettings):
 def read_routing_settings(path: Path) -> RoutingSettings:
     """Read a small YAML file with strict keys and no secret-bearing diagnostics."""
     try:
-        if not path.is_file() or path.stat().st_size > 131_072:
+        if not path.is_file() or path.stat().st_size > MAX_ROUTING_CONFIG_BYTES:
             raise ValueError("ROUTER_CONFIG_MISSING_OR_TOO_LARGE")
         loaded = yaml.safe_load(path.read_text(encoding="utf-8"))
         if not isinstance(loaded, dict):
