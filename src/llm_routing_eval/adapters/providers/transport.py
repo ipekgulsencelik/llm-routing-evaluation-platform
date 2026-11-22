@@ -12,6 +12,17 @@ from urllib.error import HTTPError
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 _ENDPOINT = "https://api.groq.com/openai/v1/chat/completions"
+NVIDIA_BUILD_CHAT_ENDPOINT = "https://integrate.api.nvidia.com/v1/chat/completions"
+# Only reviewed, fixed HTTPS endpoints may receive credentials or prompts.
+ALLOWED_CHAT_ENDPOINTS = frozenset({_ENDPOINT, NVIDIA_BUILD_CHAT_ENDPOINT})
+
+
+def _checked_endpoint(endpoint: str) -> str:
+    if endpoint not in ALLOWED_CHAT_ENDPOINTS:
+        raise ValueError("CHAT_ENDPOINT_NOT_ALLOWLISTED")
+    return endpoint
+
+
 _MAX_RESPONSE_BYTES = 1_048_576
 _NUMERIC_SECONDS = re.compile(r"^(?:0|[1-9][0-9]{0,31})(?:\.[0-9]{1,3})?$")
 
@@ -84,18 +95,33 @@ class _RejectRedirects(HTTPRedirectHandler):
 
 
 class UrllibGroqTransport:
-    """Standard-library HTTPS adapter; injectable for fully offline unit tests."""
+    """Standard-library HTTPS adapter; injectable for fully offline unit tests.
+
+    The endpoint is restricted to a fixed allowlist (Groq by default, NVIDIA
+    Build for the compatibility provider); arbitrary URLs are rejected.
+    """
+
+    def __init__(self, *, endpoint: str = _ENDPOINT) -> None:
+        self._endpoint = _checked_endpoint(endpoint)
 
     async def post_chat(
         self, body: Mapping[str, object], *, api_key: str, timeout_seconds: float
     ) -> HttpResult:
-        return await asyncio.to_thread(self._post, body, api_key, timeout_seconds)
+        return await asyncio.to_thread(
+            self._post, body, api_key, timeout_seconds, endpoint=self._endpoint
+        )
 
     @staticmethod
-    def _post(body: Mapping[str, object], api_key: str, timeout_seconds: float) -> HttpResult:
+    def _post(
+        body: Mapping[str, object],
+        api_key: str,
+        timeout_seconds: float,
+        *,
+        endpoint: str = _ENDPOINT,
+    ) -> HttpResult:
         payload = json.dumps(body, ensure_ascii=False).encode("utf-8")
         request = Request(
-            _ENDPOINT,
+            _checked_endpoint(endpoint),
             data=payload,
             headers={
                 "Authorization": "Bearer " + api_key,

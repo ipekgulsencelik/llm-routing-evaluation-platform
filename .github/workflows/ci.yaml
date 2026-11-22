@@ -34,6 +34,10 @@ jobs:
             --dataset examples/offline_demo_cases.json \
             --output artifacts/ci_offline_demo.jsonl
           uv run --locked llm-routing-eval compare-routing --output artifacts/ci_comparison.json
+          uv run --locked llm-routing-eval calibrate-routing \
+            --examples examples/synthetic_development_calibration.json \
+            --output-config artifacts/ci_routing.calibrated.yaml \
+            --report artifacts/ci_routing_calibration_report.json
       - name: Groq preflight must fail closed
         run: |
           mkdir -p artifacts

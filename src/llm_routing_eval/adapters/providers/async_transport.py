@@ -15,6 +15,7 @@ from .transport import (
     _ENDPOINT,
     _MAX_RESPONSE_BYTES,
     HttpResult,
+    _checked_endpoint,
     _decode_success_body,
     _retry_after_seconds,
 )
@@ -57,8 +58,9 @@ class AsyncClientGroqTransport:
     The transport does not own or close the injected pool/client.
     """
 
-    def __init__(self, client: AsyncStreamingClient) -> None:
+    def __init__(self, client: AsyncStreamingClient, *, endpoint: str = _ENDPOINT) -> None:
         self._client = client
+        self._endpoint = _checked_endpoint(endpoint)
 
     async def post_chat(
         self,
@@ -77,7 +79,7 @@ class AsyncClientGroqTransport:
         # only inspect numeric Retry-After on HTTP 429. Never read error bodies.
         async with self._client.stream(
             "POST",
-            _ENDPOINT,
+            self._endpoint,
             json=body,
             headers=headers,
             timeout=timeout_seconds,

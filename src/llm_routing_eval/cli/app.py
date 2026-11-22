@@ -312,6 +312,90 @@ def compare_routing(
         raise typer.Exit(code=2) from None
 
 
+@app.command("calibrate-routing")
+def calibrate_routing(
+    examples: Annotated[Path, typer.Option(help="Development-only labeled calibration JSON")],
+    router_config: Annotated[Path, typer.Option(help="Base Member 02 routing policy YAML")] = Path(
+        "config/routing.yaml"
+    ),
+    output_config: Annotated[Path, typer.Option(help="Calibrated routing YAML")] = Path(
+        "artifacts/routing.calibrated.yaml"
+    ),
+    report: Annotated[Path, typer.Option(help="Text-free calibration evidence JSON")] = Path(
+        "artifacts/routing_calibration_report.json"
+    ),
+    max_under_routing_rate: Annotated[
+        float, typer.Option(help="kNN ceiling for large-labeled examples sent to small")
+    ] = 0.05,
+    max_small_risk: Annotated[
+        float, typer.Option(help="Cascade: escalate scenarios whose large share exceeds this")
+    ] = 0.2,
+    min_scenario_examples: Annotated[
+        int, typer.Option(help="Cascade: escalate scenarios with fewer development examples")
+    ] = 3,
+) -> None:
+    """Calibrate kNN/Cascade on development data only (offline lexical embedding)."""
+    from llm_routing_eval.routing import (
+        HashingEmbedding,
+        apply_calibration,
+        calibrate_cascade,
+        calibrate_knn,
+        calibration_report,
+        read_calibration_dataset,
+    )
+    from llm_routing_eval.routing.calibration import dump_routing_settings
+
+    try:
+        base = read_routing_settings(router_config)
+        dataset = read_calibration_dataset(examples)
+        knn = asyncio.run(
+            calibrate_knn(
+                dataset.examples,
+                HashingEmbedding(dimensions=base.knn.embedding_dimensions),
+                max_under_routing_rate=max_under_routing_rate,
+            )
+        )
+        cascade = calibrate_cascade(
+            dataset.examples,
+            max_small_risk=max_small_risk,
+            min_scenario_examples=min_scenario_examples,
+        )
+        evidence = calibration_report(dataset, knn, cascade)
+        evidence["base_routing_policy_sha256"] = base.fingerprint()
+        _atomic_write(report, json.dumps(evidence, indent=2, ensure_ascii=False) + "\n")
+        if knn.selected is None:
+            typer.echo("KNN_CALIBRATION_INFEASIBLE: no grid point meets the ceiling", err=True)
+            typer.echo(f"REPORT: {report}")
+            raise typer.Exit(code=3)
+        calibrated = apply_calibration(base, dataset, knn, cascade)
+        _atomic_write(output_config, dump_routing_settings(calibrated))
+        selected = knn.selected
+        typer.echo("MODE: DEVELOPMENT_ONLY_CALIBRATION (NOT a held-out quality result)")
+        typer.echo(
+            f"KNN: k={selected.k} minimum_similarity={selected.minimum_similarity:.2f} "
+            f"accuracy={selected.accuracy:.3f} under_routing={selected.under_routing_rate:.3f}"
+        )
+        typer.echo("CASCADE_ESCALATE: " + (",".join(cascade.escalate_scenarios) or "<none>"))
+        typer.echo(f"POLICY_SHA256: {calibrated.fingerprint()}")
+        typer.echo(f"CONFIG: {output_config}")
+        typer.echo(f"REPORT: {report}")
+    except (ValueError, ValidationError, OSError):
+        typer.echo("CALIBRATION_FAILED: CALIBRATION_INPUT_INVALID", err=True)
+        raise typer.Exit(code=2) from None
+
+
+def _atomic_write(path: Path, content: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, temp = tempfile.mkstemp(dir=path.parent, prefix=".tmp-", suffix=path.suffix)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(content)
+        os.replace(temp, path)
+    except BaseException:
+        Path(temp).unlink(missing_ok=True)
+        raise
+
+
 @app.command("groq-preflight")
 def groq_preflight(
     providers_config: Annotated[Path, typer.Option(help="Versioned provider YAML config")] = Path(
