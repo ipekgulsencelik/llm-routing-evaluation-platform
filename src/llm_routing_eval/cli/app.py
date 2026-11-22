@@ -343,7 +343,10 @@ def calibrate_routing(
         calibration_report,
         read_calibration_dataset,
     )
-    from llm_routing_eval.routing.calibration import dump_routing_settings
+    from llm_routing_eval.routing.calibration import (
+        CalibratedPolicyTooLargeError,
+        dump_routing_settings,
+    )
 
     try:
         base = read_routing_settings(router_config)
@@ -368,7 +371,14 @@ def calibrate_routing(
             typer.echo(f"REPORT: {report}")
             raise typer.Exit(code=3)
         calibrated = apply_calibration(base, dataset, knn, cascade)
-        _atomic_write(output_config, dump_routing_settings(calibrated))
+        try:
+            # Serialize (and size-check) before writing so no unloadable policy is published.
+            policy_text = dump_routing_settings(calibrated)
+        except CalibratedPolicyTooLargeError:
+            typer.echo("CALIBRATION_FAILED: CALIBRATED_POLICY_TOO_LARGE", err=True)
+            typer.echo(f"REPORT: {report}")
+            raise typer.Exit(code=2) from None
+        _atomic_write(output_config, policy_text)
         selected = knn.selected
         typer.echo("MODE: DEVELOPMENT_ONLY_CALIBRATION (NOT a held-out quality result)")
         typer.echo(

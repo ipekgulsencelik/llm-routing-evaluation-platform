@@ -40,6 +40,7 @@ Input format: [`examples/synthetic_development_calibration.json`](../examples/sy
   - the scenario has fewer than `--min-scenario-examples` development examples (default 3).
 
   This replaces the hand-picked `escalate_scenarios` list with evidence. It is still **not** confidence-based escalation, because the Core `RoutingFeedback` contract has no validated output-confidence signal.
+- **Limits.** A calibration dataset may hold at most 2,000 examples. Each example's neighbour ranking is computed once and reused across the whole grid. The calibrated policy must fit the 128 KiB routing-config limit; otherwise the command exits `2` with `CALIBRATED_POLICY_TOO_LARGE`, writes the text-free report and writes no policy.
 - **Output.** The policy YAML loads with `read_routing_settings`, so the existing SHA-256 policy fingerprint covers the calibrated values. The report contains the dataset fingerprint, the base-policy fingerprint, every grid point and per-scenario counts.
 
 ```bash

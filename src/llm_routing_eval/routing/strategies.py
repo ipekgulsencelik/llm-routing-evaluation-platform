@@ -179,22 +179,29 @@ def _cosine(left: tuple[float, ...], right: tuple[float, ...]) -> float:
     return numerator / (norm_l * norm_r)
 
 
-def knn_vote(
+Neighbour = tuple[float, str, ModelTier]
+
+
+def rank_neighbours(
     query: tuple[float, ...],
     references: Sequence[tuple[tuple[float, ...], str, ModelTier]],
-    *,
-    k: int,
-    minimum_similarity: float,
-) -> tuple[ModelTier, str]:
-    """Pure kNN decision shared by the router and development-only calibration.
-
-    Stable tie-break by example ID; ties in the weighted vote and low-similarity
-    neighbourhoods conservatively select the large model.
-    """
-    candidates = sorted(
+) -> list[Neighbour]:
+    """Most similar first; stable tie-break by example ID."""
+    return sorted(
         ((_cosine(query, vector), example_id, tier) for vector, example_id, tier in references),
         key=lambda item: (-item[0], item[1]),
-    )[:k]
+    )
+
+
+def vote_ranked(
+    ranked: Sequence[Neighbour], *, k: int, minimum_similarity: float
+) -> tuple[ModelTier, str]:
+    """Decide from an already ranked neighbour list (see ``rank_neighbours``).
+
+    Ties in the weighted vote and low-similarity neighbourhoods conservatively
+    select the large model.
+    """
+    candidates = ranked[:k]
     if not candidates or candidates[0][0] < minimum_similarity:
         return "large", "KNN_LOW_SIMILARITY"
     small_vote = sum(max(0.0, score) for score, _, t in candidates if t == "small")
@@ -202,6 +209,19 @@ def knn_vote(
     if small_vote > large_vote:
         return "small", "KNN_SMALL"
     return "large", "KNN_LARGE"
+
+
+def knn_vote(
+    query: tuple[float, ...],
+    references: Sequence[tuple[tuple[float, ...], str, ModelTier]],
+    *,
+    k: int,
+    minimum_similarity: float,
+) -> tuple[ModelTier, str]:
+    """Pure kNN decision shared by the router and development-only calibration."""
+    return vote_ranked(
+        rank_neighbours(query, references), k=k, minimum_similarity=minimum_similarity
+    )
 
 
 class KnnRouter:
