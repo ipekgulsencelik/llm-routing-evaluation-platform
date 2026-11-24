@@ -90,6 +90,12 @@ class AsyncClientGroqTransport:
                 hint = _retry_after_seconds(response.headers) if status == 429 else None
                 return HttpResult(status_code=status, retry_after_seconds=hint)
 
+            # Identity encoding is requested. aiter_bytes() would decompress a
+            # gzip body before the size check (decompression bomb), so reject any
+            # other Content-Encoding from the headers without reading the body.
+            encoding = response.headers.get("Content-Encoding", "").strip().lower()
+            if encoding not in ("", "identity"):
+                return HttpResult(status_code=200)
             raw = bytearray()
             async for chunk in response.aiter_bytes(chunk_size=_CHUNK_SIZE):
                 if len(raw) + len(chunk) > _MAX_RESPONSE_BYTES:

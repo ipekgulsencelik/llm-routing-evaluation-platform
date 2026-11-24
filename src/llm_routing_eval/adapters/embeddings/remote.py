@@ -186,6 +186,10 @@ class RemoteSemanticEmbedding:
                     raise EmbeddingUnavailableError("EMBEDDING_RATE_LIMIT")
                 if response.status_code != 200:
                     raise EmbeddingUnavailableError("EMBEDDING_HTTP_ERROR")
+                # Identity encoding is requested; never decompress (bomb risk).
+                encoding = response.headers.get("Content-Encoding", "").strip().lower()
+                if encoding not in ("", "identity"):
+                    raise EmbeddingUnavailableError("EMBEDDING_UNEXPECTED_ENCODING")
                 raw = bytearray()
                 async for chunk in response.aiter_bytes(chunk_size=65_536):
                     if len(raw) + len(chunk) > _MAX_RESPONSE_BYTES:

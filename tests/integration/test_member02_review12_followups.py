@@ -375,3 +375,94 @@ def test_f3_comparison_revalidates_cascade_budget_before_running_anything() -> N
     with pytest.raises(BenchmarkInputError, match="CASCADE_CALL_BUDGET_TOO_SMALL_FOR_RETRIES"):
         asyncio.run(StrategyComparisonRunner(orchestrator_factory=build).compare([case], base))
     assert built == []
+
+
+# ------------------------------------------- compressed responses (Codex on upstream #18)
+
+
+class _CountingGzipStream(httpx.AsyncByteStream):
+    def __init__(self, payload: bytes) -> None:
+        self._payload = payload
+        self.yielded = 0
+
+    async def __aiter__(self):  # type: ignore[no-untyped-def]
+        for start in range(0, len(self._payload), 4096):
+            chunk = self._payload[start : start + 4096]
+            self.yielded += len(chunk)
+            yield chunk
+
+
+def _gzip_bomb() -> bytes:
+    import gzip
+
+    bomb = gzip.compress(b"0" * 60_000_000)
+    assert len(bomb) < 100_000
+    return bomb
+
+
+def test_compressed_chat_response_is_rejected_before_decompression(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("LLM_ROUTING_ALLOW_LIVE", "1")
+    monkeypatch.setenv("GROQ_API_KEY", SECRET)
+    stream = _CountingGzipStream(_gzip_bomb())
+
+    async def handler(_: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, headers={"Content-Encoding": "gzip"}, stream=stream)
+
+    async def run() -> ModelResponse:
+        async with managed_httpx_groq_provider(
+            GroqProviderOptions(allowed_models=frozenset({LARGE}), live_enabled=True),
+            outbound_authorization=DemoPromptApproval(),
+            mock_transport=httpx.MockTransport(handler),
+        ) as provider:
+            return await provider.generate(
+                ModelRequest(
+                    run_id="r",
+                    case_id="c",
+                    trace_id="t",
+                    attempt_id="a",
+                    provider="groq",
+                    model=LARGE,
+                    prompt=sorted(DEMO_PROMPTS)[0],
+                    timeout_seconds=2.0,
+                )
+            )
+
+    response = asyncio.run(run())
+    assert response.status is CallStatus.FAILED
+    assert response.error is not None and response.error.code == "GROQ_INVALID_RESPONSE"
+    assert stream.yielded == 0  # rejected from headers; nothing read or decompressed
+
+
+def test_compressed_embedding_response_is_rejected_before_decompression(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from llm_routing_eval.adapters.embeddings import (
+        EmbeddingUnavailableError,
+        RemoteEmbeddingOptions,
+        managed_nvidia_embedding,
+    )
+
+    monkeypatch.setenv("LLM_ROUTING_ALLOW_LIVE", "1")
+    monkeypatch.setenv("NVIDIA_API_KEY", SECRET)
+    stream = _CountingGzipStream(_gzip_bomb())
+
+    class Approve:
+        def authorize_embedding(self, *, model: str, texts: tuple[str, ...]) -> bool:
+            return True
+
+    async def handler(_: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, headers={"Content-Encoding": "gzip"}, stream=stream)
+
+    async def run() -> None:
+        async with managed_nvidia_embedding(
+            RemoteEmbeddingOptions(model="nvidia/nv-embedqa-e5-v5", live_enabled=True),
+            outbound_authorization=Approve(),
+            mock_transport=httpx.MockTransport(handler),
+        ) as embedder:
+            await embedder.embed(("synthetic text",))
+
+    with pytest.raises(EmbeddingUnavailableError, match="^EMBEDDING_UNEXPECTED_ENCODING$"):
+        asyncio.run(run())
+    assert stream.yielded == 0
