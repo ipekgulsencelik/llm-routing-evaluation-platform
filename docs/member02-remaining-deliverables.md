@@ -74,3 +74,13 @@ Record the result (date, model ID, pass/fail) in the handoff sign-off. A pass pr
 | Confidence-based Cascade escalation | Member 01 + Member 03 | Needs a Core contract change (a validated confidence/quality signal in `RoutingFeedback`) |
 
 `config/providers.yaml` keeps `groq.enabled: false` and `nvidia_build.enabled: false`, and `candidate_models` for NVIDIA stays empty. The offline-release guard test enforces this.
+
+## 5. Review #12 follow-ups (2026-11-24)
+
+The three P2 findings that block Phase E (F1–F3, upstream issues 15–17) are addressed in this fork. The decisions are recorded as D-M02-F1, D-M02-F2 and D-M02-F3 in [decisions.md](decisions.md); the regression tests are in [`tests/integration/test_member02_review12_followups.py`](../tests/integration/test_member02_review12_followups.py).
+
+- **F1:** Providers have no implicit thread-based transport, so live use must inject the cancellable managed HTTPX path. A test checks that `run()` returns with no call in flight and that retries never overlap.
+- **F2:** A Cascade answer kept after a failed escalation is marked in the trace and counted as `degraded_cases`. `compare-routing` prints a `STRICT` success column next to the plain success count.
+- **F3:** Cascade budgets that let small-model retries starve the escalation are rejected at configuration time, and a trace marker covers the defense-in-depth path.
+
+F4 (the kNN leak guard only catches exact matches) and the P3 items F5–F9 are not addressed here.
