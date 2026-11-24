@@ -345,3 +345,33 @@ def test_f3_issue_repro_now_escalates_after_small_timeouts() -> None:
     )
     assert provider.models == [SMALL, SMALL, LARGE]
     assert result.traces[0].status is ExecutionStatus.COMPLETED
+
+
+def test_f3_comparison_revalidates_cascade_budget_before_running_anything() -> None:
+    """Codex review on PR #20: model_copy must not bypass the Cascade guard."""
+    from llm_routing_eval.application import BenchmarkInputError
+    from llm_routing_eval.routing import read_routing_settings
+
+    settings = read_routing_settings(__import__("pathlib").Path("config/routing.yaml"))
+    built: list[StrategyId] = []
+
+    async def build(strategy: StrategyId) -> BenchmarkOrchestrator:
+        built.append(strategy)
+        return _engine(await build_router(strategy, settings), DemoFakeProvider())
+
+    base = RunOptions(  # valid for Always-Large, invalid for Cascade
+        allowed_models=(settings.models.small, settings.models.large),
+        max_model_calls_per_case=2,
+        max_retries=1,
+        routing_policy_sha256=settings.fingerprint(),
+    )
+    case = BenchmarkCase(
+        case_id="c",
+        input_text=sorted(DEMO_PROMPTS)[0],
+        domain="turkish_banking",
+        scenario_type="account_general",
+        metadata={"synthetic": True},
+    )
+    with pytest.raises(BenchmarkInputError, match="CASCADE_CALL_BUDGET_TOO_SMALL_FOR_RETRIES"):
+        asyncio.run(StrategyComparisonRunner(orchestrator_factory=build).compare([case], base))
+    assert built == []

@@ -246,9 +246,24 @@ class StrategyComparisonRunner:
             raise BenchmarkInputError("COMPARISON_REQUIRES_SYNTHETIC_POLICY")
         expected = tuple(case.case_id for case in workload)
         rows: list[ComparisonRow] = []
+        # Re-validate every per-strategy option set up front: model_copy would skip
+        # strategy-specific rules such as the Cascade budget guard (review #12 F3),
+        # and nothing may run if any strategy's configuration is invalid.
+        per_strategy: list[RunOptions] = []
         for strategy in ALL_STRATEGIES:
+            try:
+                per_strategy.append(
+                    RunOptions.model_validate(base_options.model_dump() | {"strategy": strategy})
+                )
+            except ValueError as exc:
+                code = (
+                    "CASCADE_CALL_BUDGET_TOO_SMALL_FOR_RETRIES"
+                    if "CASCADE_CALL_BUDGET_TOO_SMALL_FOR_RETRIES" in str(exc)
+                    else "COMPARISON_OPTIONS_INVALID"
+                )
+                raise BenchmarkInputError(code) from None
+        for strategy, options in zip(ALL_STRATEGIES, per_strategy, strict=True):
             orchestrator = await self._factory(strategy)
-            options = base_options.model_copy(update={"strategy": strategy})
             result = await orchestrator.run(workload, options)
             rows.append(_row(result, strategy, expected))
         return ComparisonReport(
