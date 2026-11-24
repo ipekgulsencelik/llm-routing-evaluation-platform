@@ -27,7 +27,13 @@ from llm_routing_eval.core import (
     TraceStepKind,
 )
 
-from .orchestrator import BenchmarkInputError, BenchmarkOrchestrator, RunOptions, RunResult
+from .orchestrator import (
+    BenchmarkInputError,
+    BenchmarkOrchestrator,
+    RunOptions,
+    RunResult,
+    is_degraded_trace,
+)
 
 ALL_STRATEGIES: tuple[StrategyId, ...] = (
     StrategyId.ALWAYS_LARGE,
@@ -46,6 +52,8 @@ class ComparisonRow(BaseModel):
     run_id: str
     case_count: int = Field(ge=1)
     successful_cases: int = Field(ge=0)
+    # Cascade cases that kept a lower-tier answer after a failed escalation.
+    degraded_cases: int = Field(default=0, ge=0)
     failed_cases: int = Field(ge=0)
     blocked_cases: int = Field(ge=0)
     evaluated_cases: int = Field(ge=0)
@@ -67,10 +75,16 @@ class ComparisonRow(BaseModel):
     fixture_score_samples: int = Field(ge=0)
     cost_amount: None = None
 
+    @property
+    def strict_successful_cases(self) -> int:
+        """Comparable with baselines: excludes retained lower-tier answers."""
+        return self.successful_cases - self.degraded_cases
+
     @model_validator(mode="after")
     def check_coverage(self) -> ComparisonRow:
         if (
             self.successful_cases + self.failed_cases + self.blocked_cases != self.case_count
+            or self.degraded_cases > self.successful_cases
             or self.successful_attempts > self.provider_attempts
             or self.evaluated_cases > self.case_count
             or self.token_usage_samples > self.provider_attempts
@@ -178,6 +192,7 @@ def _row(result: RunResult, strategy: StrategyId, expected_cases: tuple[str, ...
         run_id=result.report.run_id,
         case_count=len(traces),
         successful_cases=sum(t.status is ExecutionStatus.COMPLETED for t in traces),
+        degraded_cases=sum(is_degraded_trace(t) for t in traces),
         failed_cases=sum(
             t.status in (ExecutionStatus.FAILED, ExecutionStatus.PARTIAL) for t in traces
         ),

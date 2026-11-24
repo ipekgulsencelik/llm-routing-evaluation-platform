@@ -288,7 +288,9 @@ def compare_routing(
         )
         write_comparison(output, summary)
         typer.echo("MODE: OFFLINE_SIMULATION (NOT financial quality or provider latency)")
-        typer.echo("STRATEGY        SUCCESS   ATTEMPTS   ATT/CAS   TOKENS/CALL (SIMULATED)")
+        typer.echo(
+            "STRATEGY        SUCCESS   STRICT   ATTEMPTS   ATT/CAS   TOKENS/CALL (SIMULATED)"
+        )
         for row in summary.strategies:
             total = (
                 f"{row.input_tokens_per_attempt:.1f}+{row.output_tokens_per_attempt:.1f}"
@@ -298,8 +300,10 @@ def compare_routing(
             )
             typer.echo(
                 f"{row.strategy.value:<16}{row.successful_cases:>3}/{row.case_count:<5}"
+                f"{row.strict_successful_cases:>4}/{row.case_count:<4}"
                 f"{row.provider_attempts:>8}{row.attempts_per_case:>10.2f}   {total}"
             )
+        typer.echo("STRICT: excludes Cascade answers kept after a failed escalation")
         typer.echo("COST: UNKNOWN; LATENCY: LOCAL APPLICATION ONLY")
         typer.echo(f"REPORT: {output}")
     except (BenchmarkInputError, BenchmarkPersistenceError, ValueError, ValidationError) as exc:
