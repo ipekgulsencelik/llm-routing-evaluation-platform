@@ -30,7 +30,7 @@ from .openai_compatible import (
     validate_budget,
 )
 from .response_mapping import GroqResponseMapper
-from .transport import NVIDIA_BUILD_CHAT_ENDPOINT, GroqTransport, UrllibGroqTransport
+from .transport import NVIDIA_BUILD_CHAT_ENDPOINT, GroqTransport
 
 NVIDIA_BUILD_PROFILE = ProviderProfile(
     provider_id="nvidia_build",
@@ -82,11 +82,7 @@ class NvidiaBuildChatProvider(OpenAICompatibleChatProvider):
         super().__init__(
             NVIDIA_BUILD_PROFILE,
             options.budget(),
-            transport=(
-                transport
-                if transport is not None
-                else UrllibGroqTransport(endpoint=NVIDIA_BUILD_CHAT_ENDPOINT)
-            ),
+            transport=transport,
             outbound_authorization=outbound_authorization,
             mapper=mapper,
         )

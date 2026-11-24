@@ -95,7 +95,12 @@ class _RejectRedirects(HTTPRedirectHandler):
 
 
 class UrllibGroqTransport:
-    """Standard-library HTTPS adapter; injectable for fully offline unit tests.
+    """Standard-library HTTPS adapter; must be injected explicitly, never a default.
+
+    WARNING (review #12 F1): it runs in ``asyncio.to_thread``. Cancelling the
+    awaiting task (e.g. an orchestrator timeout) does NOT stop the thread, and
+    urllib's timeout is per socket operation, not per request, so a retry can
+    overlap the abandoned call. Use the managed HTTPX providers for live runs.
 
     The endpoint is restricted to a fixed allowlist (Groq by default, NVIDIA
     Build for the compatibility provider); arbitrary URLs are rejected.

@@ -18,7 +18,7 @@ from .openai_compatible import (
     validate_budget,
 )
 from .response_mapping import GroqResponseMapper
-from .transport import _ENDPOINT, GroqTransport, UrllibGroqTransport
+from .transport import _ENDPOINT, GroqTransport
 
 GROQ_PROFILE = ProviderProfile(
     provider_id="groq",
@@ -56,7 +56,12 @@ class GroqProviderOptions:
 
 
 class GroqChatProvider(OpenAICompatibleChatProvider):
-    """Primary provider; defaults to the standard-library HTTPS transport."""
+    """Primary provider. Live use: ``managed_httpx_groq_provider`` (cancellable).
+
+    Without an injected transport every request fails closed with
+    ``GROQ_TRANSPORT_NOT_CONFIGURED``; ``UrllibGroqTransport`` must be injected
+    explicitly and cannot cancel a timed-out request (see review #12 F1).
+    """
 
     def __init__(
         self,
@@ -69,7 +74,7 @@ class GroqChatProvider(OpenAICompatibleChatProvider):
         super().__init__(
             GROQ_PROFILE,
             options.budget(),
-            transport=transport if transport is not None else UrllibGroqTransport(),
+            transport=transport,
             outbound_authorization=outbound_authorization,
             mapper=mapper,
         )

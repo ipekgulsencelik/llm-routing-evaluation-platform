@@ -80,7 +80,7 @@ class OpenAICompatibleChatProvider:
         profile: ProviderProfile,
         budget: ChatBudget,
         *,
-        transport: GroqTransport,
+        transport: GroqTransport | None,
         outbound_authorization: OutboundAuthorization | None = None,
         mapper: GroqResponseMapper | None = None,
     ) -> None:
@@ -127,6 +127,11 @@ class OpenAICompatibleChatProvider:
         api_key = os.getenv(self._profile.api_key_env)
         if not api_key or not api_key.strip():
             return failed(request, self._code("API_KEY_MISSING"))
+        if self._transport is None:
+            # Review #12 F1: there is deliberately no implicit thread-based default.
+            # A timed-out to_thread call cannot be cancelled and would overlap retries;
+            # live use must inject a cancellable transport (managed_httpx_*_provider).
+            return failed(request, self._code("TRANSPORT_NOT_CONFIGURED"))
 
         body: dict[str, object] = {
             "model": request.model,
